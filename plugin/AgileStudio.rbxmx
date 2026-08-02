@@ -2616,6 +2616,601 @@ function applyThemePreview(theme)
 	end)
 	toast("Theme preview: " .. theme, "info")
 end
+
+-- ============================================================ Advanced UI Components Library
+-- Rich, reusable UI components matching AgileBot's quality level
+
+-- Scrollable Tab View
+function createTabView(parent, tabs)
+	local container = frame(parent, "TabContainer", C("panel"))
+	container.Size = UDim2.new(1, 0, 1, 0)
+	container.BorderSizePixel = 0
+	
+	-- Tab bar
+	local tabBar = frame(container, "TabBar", C("panel2"))
+	tabBar.Size = UDim2.new(1, 0, 0, 36)
+	tabBar.BorderSizePixel = 0
+	
+	-- Tab content area
+	local contentArea = frame(container, "TabContent", Color3.fromRGB(0, 0, 0, 0))
+	contentArea.Size = UDim2.new(1, 0, 1, -36)
+	contentArea.Position = UDim2.new(0, 0, 0, 36)
+	contentArea.BackgroundTransparency = 1
+	
+	local activeTab = 1
+	local tabButtons = {}
+	
+	for i, tab in ipairs(tabs) do
+		local btn = inst("TextButton", tabBar, "Tab_" .. i)
+		btn.Size = UDim2.new(0, 120, 0, 32)
+		btn.Position = UDim2.new(0, (i - 1) * 124, 0.5, -16)
+		btn.BackgroundTransparency = 1
+		btn.BorderSizePixel = 0
+		btn.TextColor3 = (i == activeTab) and C("accent2") or C("textDim")
+		btn.Font = CFG.fontMedium
+		btn.TextSize = 12
+		btn.Text = tab.name
+		btn.ZIndex = 2
+		
+		local underline = inst("Frame", btn, "Underline")
+		underline.Size = UDim2.new(1, 0, 0, 2)
+		underline.Position = UDim2.new(0, 0, 1, 0)
+		underline.BackgroundColor3 = C("accent2")
+		underline.BorderSizePixel = 0
+		underline.Visible = (i == activeTab)
+		
+		btn.MouseButton1Click:Connect(function()
+			-- Switch tab
+			for j, oldBtn in ipairs(tabButtons) do
+				oldBtn.TextColor3 = C("textDim")
+				oldBtn:FindFirstChild("Underline").Visible = false
+			end
+			activeTab = i
+			btn.TextColor3 = C("accent2")
+			underline.Visible = true
+			-- Show content
+			if tab.content then
+				contentArea:ClearAllChildren()
+				tab.content(contentArea)
+			end
+		end)
+		
+		table.insert(tabButtons, btn)
+	end
+	
+	-- Show first tab
+	if tabs[1] and tabs[1].content then
+		tabs[1].content(contentArea)
+	end
+	
+	return container
+end
+
+-- Modal Dialog System
+function showModal(title, contentBuilder, onClose)
+	-- Create overlay
+	local overlay = inst("Frame", State.gui.gui, "ModalOverlay")
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.Position = UDim2.new(0, 0, 0, 0)
+	overlay.BackgroundTransparency = 0.3
+	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	overlay.BorderSizePixel = 0
+	overlay.ZIndex = 200
+	
+	-- Modal window
+	local modal = inst("Frame", overlay, "ModalWindow")
+	modal.Size = UDim2.new(0, 480, 0, 320)
+	modal.Position = UDim2.new(0.5, -240, 0.5, -160)
+	modal.BackgroundColor3 = C("panel")
+	modal.BorderSizePixel = 0
+	modal.ZIndex = 201
+	corner(modal, CFG.radiusLg)
+	
+	-- Header
+	local header = frame(modal, "ModalHeader", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 40)
+	header.BorderSizePixel = 0
+	label(header, "ModalTitle", title, 14, C("text")).Font = CFG.fontBold
+	
+	-- Close button
+	local closeBtn = inst("TextButton", header, "ModalClose")
+	closeBtn.Size = UDim2.new(0, 24, 0, 24)
+	closeBtn.Position = UDim2.new(1, -28, 0.5, -12)
+	closeBtn.BackgroundTransparency = 1
+	closeBtn.TextColor3 = C("textDim")
+	closeBtn.Font = CFG.fontBold
+	closeBtn.TextSize = 16
+	closeBtn.Text = "×"
+	closeBtn.ZIndex = 202
+	closeBtn.MouseButton1Click:Connect(function()
+		overlay:Destroy()
+		if onClose then onClose() end
+	end)
+	
+	-- Content area
+	local content = frame(modal, "ModalContent", Color3.fromRGB(0, 0, 0, 0))
+	content.Size = UDim2.new(1, 0, 1, -40)
+	content.Position = UDim2.new(0, 0, 0, 40)
+	content.BackgroundTransparency = 1
+	
+	-- Build content
+	if contentBuilder then
+		contentBuilder(content)
+	end
+	
+	return overlay
+end
+
+-- Notification System with Rich Display
+function showNotification(opts)
+	opts = opts or {}
+	local msg = opts.message or "Notification"
+	local duration = opts.duration or 3
+	local type = opts.type or "info" -- info, success, warning, error
+	local actions = opts.actions or {}
+	
+	local notification = frame(State.gui.gui, "Notification_" .. tostring(tick()), C("panel"))
+	notification.Size = UDim2.new(0, 320, 0, 0)
+	notification.AutomaticSize = Enum.AutomaticSize.Y
+	notification.Position = UDim2.new(1, -328, 0, 12)
+	notification.ZIndex = 150
+	notification.BackgroundTransparency = 1
+	corner(notification, CFG.radiusSm)
+	
+	-- Background
+	local bg = inst("Frame", notification, "BG")
+	bg.Size = UDim2.new(1, 0, 1, 0)
+	bg.Position = UDim2.new(0, 0, 0, 0)
+	bg.BackgroundColor3 = C("bubble")
+	bg.BorderSizePixel = 0
+	bg.ZIndex = 150
+	
+	-- Icon
+	local iconChar = "ℹ️"
+	if type == "success" then iconChar = "✅"
+	elseif type == "warning" then iconChar = "⚠️"
+	elseif type == "error" then iconChar = "❌" end
+	local icon = label(bg, "Icon", iconChar, 16, Color3.fromRGB(255, 255, 255))
+	icon.Size = UDim2.new(0, 24, 0, 24)
+	icon.Position = UDim2.new(0, 8, 0, 8)
+	
+	-- Message
+	local messageLabel = txt(bg, "Message", msg, 12, C("text"))
+	messageLabel.Size = UDim2.new(1, -40, 0, 0)
+	messageLabel.Position = UDim2.new(0, 40, 0, 8)
+	messageLabel.AutomaticSize = Enum.AutomaticSize.Y
+	
+	-- Actions (if any)
+	if #actions > 0 then
+		local actionY = (messageLabel.AbsoluteSize.Y > 0 and messageLabel.AbsoluteSize.Y or 20) + 16
+		for i, action in ipairs(actions) do
+			local btn = abtn(bg, "Action_" .. i, action.label, action.color or C("indigo"))
+			btn.Size = UDim2.new(0, 80, 0, 26)
+			btn.Position = UDim2.new(0, 40, 0, actionY + (i - 1) * 30)
+			btn.ZIndex = 151
+			btn.MouseButton1Click:Connect(function()
+				if action.callback then action.callback() end
+				notification:Destroy()
+			end)
+		end
+	end
+	
+	-- Auto-dismiss
+	task.delay(duration, function()
+		if notification and notification.Parent then
+			notification:Destroy()
+		end
+	end)
+end
+
+-- Animated Progress Bar
+function createProgressBar(parent, opts)
+	opts = opts or {}
+	local bar = frame(parent, "ProgressBar", C("panel2"))
+	bar.Size = UDim2.new(opts.width or 1, 0, 0, opts.height or 6)
+	bar.BorderSizePixel = 0
+	local fill = inst("Frame", bar, "Fill")
+	fill.Size = UDim2.new(0, 0, 1, 0)
+	fill.BackgroundColor3 = opts.color or C("indigo")
+	fill.BorderSizePixel = 0
+	corner(fill, 3)
+	
+	-- Animate to target
+	local current = 0
+	local target = 0
+	local animating = false
+	
+	local function animate()
+		inimating = true
+		while animating and current < target do
+			current = math.min(current + (target - current) * 0.2, target)
+			fill.Size = UDim2.new(current / 100, 0, 1, 0)
+			task.wait()
+		end
+		animating = false
+	end
+	
+	local function setProgress(val)
+		target = math.clamp(val, 0, 100)
+		if not animating then
+			animate()
+		end
+	end
+	
+	return {
+		set = setProgress,
+		reset = function() setProgress(0) end,
+		bar = bar
+	}
+end
+
+-- Avatar Creator (Initials-based)
+function createAvatar(parent, name, size, bgColor)
+	size = size or 28
+	bgColor = bgColor or C("indigo")
+	local firstTwo = ""
+	if name and #name > 0 then
+		local words = {}
+		for w in name:gmatch("%S+") do table.insert(words, w) end
+		if #words >= 2 then
+			firstTwo = words[1]:sub(1, 1) .. words[#words]:sub(1, 1)
+		elseif #words == 1 then
+			firstTwo = name:sub(1, 2):upper()
+		else
+			firstTwo = "AI"
+		end
+	else
+		firstTwo = "AI"
+	end
+	firstTwo = firstTwo:upper()
+	
+	local avatar = inst("Frame", parent, "Avatar_" .. (name or "unknown"))
+	avatar.Size = UDim2.new(0, size, 0, size)
+	avatar.BackgroundColor3 = bgColor
+	avatar.BorderSizePixel = 0
+	corner(avatar, size / 2)
+	
+	local label = inst("TextLabel", avatar, "Label")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = firstTwo
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = CFG.fontBold
+	label.TextSize = size / 2
+	label.TextWrapped = true
+	
+	return avatar
+end
+
+-- ============================================================ Rich Text Processing & Markdown Support
+function processMarkdown(text)
+	-- Basic markdown to Roblox rich text conversion
+	local result = text
+	-- Headers: # ## ###
+	result = result:gsub("###%s+(.+)", "<size=12><b>%1</b></size>")
+	result = result:gsub("##%s+(.+)", "<size=14><b>%1</b></size>")
+	result = result:gsub("#%s+(.+)", "<size=16><b>%1</b></size>")
+	-- Bold: **text**
+	result = result:gsub("%*%*(.-)%*%*", "<b>%1</b>")
+	-- Italic: *text*
+	result = result:gsub("%*(.-)%*", "<i>%1</i>")
+	-- Inline code: `text`
+	result = result:gsub("`(.-)`", "<font color='#5c6370'>%1</font>")
+	-- Strikethrough: ~~text~~
+	result = result:gsub("%-\-(.-)%-\-", "<s>%1</s>")
+	-- Links: [text](url)
+	result = result:gsub("%[.-%]%.%[(.-)%]", "%1")
+	return result
+end
+
+-- ============================================================ Token Counter & Analytics
+function countTokens(text)
+	if not text then return 0 end
+	local count = 0
+	for _ in text:gmatch("%S+") do
+		count = count + 1
+	end
+	return count
+end
+
+function renderTokenAnalytics(scroll, conv)
+	if not conv then return end
+	local totalTokens = 0
+	local userTokens = 0
+	local assistTokens = 0
+	for _, m in ipairs(conv.messages) do
+		local tokens = countTokens(m.text)
+		totalTokens = totalTokens + tokens
+		if m.role == "user" then
+			userTokens = userTokens + tokens
+		else
+			assistTokens = assistTokens + tokens
+		end
+	end
+	
+	local card = frame(scroll, "TokenAnalytics", C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	label(header, "Title", "📊 Token Analytics", 12, C("accent2"))
+	
+	-- Stats rows
+	local row1 = frame(card, "Row1", Color3.fromRGB(0, 0, 0, 0))
+	row1.Size = UDim2.new(1, -16, 0, 24)
+	row1.Position = UDim2.new(0, 8, 0, 4)
+	row1.BackgroundTransparency = 1
+	label(row1, "Total", "Total tokens: " .. totalTokens, 12, C("text"))
+	label(row1, "TotalPct", string.format("%.1f%%", 100), 12, C("textDim"))
+	row1:FindFirstChild("TotalPct").AnchorPoint = Vector2.new(1, 0)
+	row1:FindFirstChild("TotalPct").Position = UDim2.new(1, 0, 0, 2)
+	
+	local row2 = frame(card, "Row2", Color3.fromRGB(0, 0, 0, 0))
+	row2.Size = UDim2.new(1, -16, 0, 24)
+	row2.Position = UDim2.new(0, 8, 0, 30)
+	row2.BackgroundTransparency = 1
+	label(row2, "User", "User: " .. userTokens, 12, C("text"))
+	
+	local row3 = frame(card, "Row3", Color3.fromRGB(0, 0, 0, 0))
+	row3.Size = UDim2.new(1, -16, 0, 24)
+	row3.Position = UDim2.new(0, 8, 0, 56)
+	row3.BackgroundTransparency = 1
+	label(row3, "Assist", "Assistant: " .. assistTokens, 12, C("text"))
+	
+	return card
+end
+
+-- ============================================================ Conversation Branching & Forking
+function forkConversation(baseConv, name)
+	local newConv = {
+		id = "c" .. tostring(tick()):sub(-8) .. "_" .. math.random(1000, 9999),
+		name = name or (baseConv.name .. " (fork)"),
+		messages = {},
+		createdAt = tick(),
+		forkedFrom = baseConv.id
+	}
+	for _, m in ipairs(baseConv.messages) do
+		table.insert(newConv.messages, {
+			role = m.role,
+			text = m.text,
+			seq = m.seq,
+			createdAt = m.createdAt
+		})
+	end
+	State.conversations[#State.conversations + 1] = newConv
+	State.activeId = newConv.id
+	saveConversations()
+	renderSidebar()
+	renderChat()
+	toast("Forked conversation: " .. newConv.name, "ok")
+	return newConv
+end
+
+function renderMessageMenu(msg, conv, button)
+	-- Dropdown menu on a message
+	if not button then return end
+	local menu = inst("Frame", button, "MsgMenu")
+	menu.Size = UDim2.new(0, 160, 0, 0)
+	menu.Position = UDim2.new(0, 0, 1, 2)
+	menu.BackgroundColor3 = C("panel")
+	menu.BorderSizePixel = 0
+	menu.Visible = false
+	menu.ZIndex = 100
+	corner(menu, CFG.radiusSm)
+	
+	local layout = inst("UIListLayout", menu)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
+	
+	local function addItem(name, icon, callback)
+		local item = inst("TextButton", menu, name)
+		item.Size = UDim2.new(1, 0, 0, 28)
+		item.BackgroundTransparency = 1
+		item.TextColor3 = C("text")
+		item.Font = CFG.font
+		item.TextSize = 12
+		item.TextXAlignment = Enum.TextXAlignment.Left
+		item.Position = UDim2.new(0, 8, 0, 0)
+		item.Text = icon .. " " .. name
+		item.MouseButton1Click:Connect(function()
+			callback()
+			menu.Visible = false
+		end)
+		item.MouseEnter:Connect(function() item.BackgroundColor3 = C("panel2") end)
+		item.MouseLeave:Connect(function() item.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+		return item
+	end
+	
+	addItem("Copy", "📋", function()
+		if setclipboard then setclipboard(msg.text or "") end
+		toast("Copied", "ok")
+	end)
+	
+	addItem("Fork", "🔱", function()
+		forkConversation(getActive(), msg.text .. " (fork)")
+	end)
+	
+	addItem("Edit", "✏️", function()
+		-- Inline edit
+		toast("Edit in next update", "info")
+	end)
+	
+	addItem("Delete", "🗑️", function()
+		for i, m in ipairs(conv.messages) do
+			if m.seq == msg.seq then
+				table.remove(conv.messages, i)
+				saveConversations()
+				renderChat()
+				toast("Deleted", "ok")
+				break
+			end
+		end
+	end)
+	
+	-- Show menu
+	menu.Visible = true
+	menu.Size = UDim2.new(0, 160, 0, #{"Copy", "Fork", "Edit", "Delete"} * 28 + 8)
+	
+	-- Auto-hide on outside click
+	local conn
+	conn = UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if not menu:IsAncestorOf(input.Target) then
+			menu.Visible = false
+			if conn then conn:Disconnect() end
+		end
+	end)
+end
+
+-- ============================================================ Animated Background (particles)
+function setupBackgroundAnimation(bg)
+	if not bg then return end
+	-- Create particle effect with small dots
+	local particles = {}
+	for i = 1, 30 do
+		local p = inst("Frame", bg, "Particle_" .. i)
+		p.Size = UDim2.new(0, 2, 0, 2)
+		p.BackgroundColor3 = C("indigo")
+		p.BorderSizePixel = 0
+		p.BackgroundTransparency = 0.7
+		p.Position = UDim2.new(math.random(), 0, math.random(), 0)
+		corner(p, 1)
+		particles[i] = {obj = p, vx = (math.random() - 0.5) * 0.0003, vy = (math.random() - 0.5) * 0.0003}
+	end
+	
+	-- Animate
+	State.bgAnimConn = RunService.Heartbeat:Connect(function(dt)
+		for _, p in ipairs(particles) do
+			local pos = p.Position
+			p.Position = UDim2.new(pos.X.Scale + p.vx, 0, pos.Y.Scale + p.vy, 0)
+			if pos.X.Scale > 1 then p.Position = UDim2.new(0, 0, pos.Y.Scale, 0) end
+			if pos.Y.Scale > 1 then p.Position = UDim2.new(pos.X.Scale, 0, 0, 0) end
+			if pos.X.Scale < 0 then p.Position = UDim2.new(1, 0, pos.Y.Scale, 0) end
+			if pos.Y.Scale < 0 then p.Position = UDim2.new(pos.X.Scale, 0, 1, 0) end
+			p.BackgroundTransparency = 0.5 + 0.2 * math.sin(tick() + pos.X.Scale * 10)
+		end
+	end)
+	
+	-- Cleanup
+	bg.Destroying:Connect(function()
+		if State.bgAnimConn then State.bgAnimConn:Disconnect() end
+	end)
+end
+
+-- ============================================================ Command Palette (Ctrl+K)
+function showCommandPalette()
+	local overlay = inst("Frame", State.gui.gui, "CmdPaletteOverlay")
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.BackgroundTransparency = 0.5
+	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	overlay.BorderSizePixel = 0
+	overlay.ZIndex = 200
+	
+	local panel = inst("Frame", overlay, "CmdPanel")
+	panel.Size = UDim2.new(0, 480, 0, 320)
+	panel.Position = UDim2.new(0.5, -240, 0.5, -160)
+	panel.BackgroundColor3 = C("panel")
+	panel.BorderSizePixel = 0
+	panel.ZIndex = 201
+	corner(panel, CFG.radius)
+	
+	-- Input
+	local input = box(panel, "CmdInput")
+	input.Size = UDim2.new(1, -16, 0, 36)
+	input.Position = UDim2.new(0, 8, 0, 8)
+	input.PlaceholderText = "Type a command..."
+	input.PlaceholderColor3 = C("placeholder")
+	input.Font = CFG.fontCode
+	input.TextSize = 12
+	input.BackgroundColor3 = C("code")
+	input.TextColor3 = C("text")
+	input.Text = ""
+	
+	-- Results list
+	local results = scroll(panel, "CmdResults")
+	results.Size = UDim2.new(1, -16, 1, -52)
+	results.Position = UDim2.new(0, 8, 0, 44)
+	results.BackgroundTransparency = 1
+	results.BorderSizePixel = 0
+	results.ScrollBarThickness = 4
+	
+	-- Commands
+	local commands = {
+		{name = "new", desc = "New conversation", icon = "🆕"},
+		{name = "models", desc = "Refresh models", icon = "🔄"},
+		{name = "settings", desc = "Open Settings", icon = "⚙️"},
+		{name = "usage", desc = "Open Usage", icon = "📊"},
+		{name = "sounds", desc = "Open Sounds", icon = "🔊"},
+		{name = "mods", desc = "Open Mods", icon = "🧩"},
+		{name = "export", desc = "Export chat", icon = "📤"},
+		{name = "search", desc = "Search messages...", icon = "🔍"},
+		{name = "theme", desc = "Toggle theme", icon = "🎨"},
+		{name = "appearance", desc = "Toggle appearance", icon = "👁"},
+	}
+	
+	local function updateResults()
+		results:ClearAllChildren()
+		local query = input.Text:lower()
+		for _, cmd in ipairs(commands) do
+			if cmd.name:find(query, 1, true) or cmd.desc:lower():find(query, 1, true) then
+				local row = inst("TextButton", results, "CmdRow_" .. cmd.name)
+				row.Size = UDim2.new(1, 0, 0, 32)
+				row.BackgroundTransparency = 1
+				label(row, "Icon", cmd.icon, 14, C("accent2"))
+				label(row, "Name", cmd.name, 12, C("text"))
+				label(row, "Desc", cmd.desc, 10, C("textDim"))
+				row.MouseButton1Click:Connect(function()
+					overlay:Destroy()
+					-- Execute command
+					if cmd.name == "new" then newConversation("New Chat") renderSidebar() renderChat()
+					elseif cmd.name == "models" then loadModels(true)
+					elseif cmd.name == "settings" then buildSettings()
+					elseif cmd.name == "usage" then buildUsage()
+					elseif cmd.name == "sounds" then buildSounds()
+					elseif cmd.name == "mods" then buildMods()
+					elseif cmd.name == "export" then copyExportToClipboard()
+					elseif cmd.name == "theme" then CFG.theme = CFG.theme == "dark" and "light" or "dark" saveSettings() toast("Theme: " .. CFG.theme, "ok")
+					elseif cmd.name == "appearance" then CFG.appearance = isCodeAppearance() and "claude" or "claude-code" saveSettings() toast("Appearance: " .. CFG.appearance, "ok")
+					end
+			end)
+		end
+		-- Auto-select first result
+		local firstResult = results:FindFirstChildWhichIsA("TextButton")
+		if firstResult then
+			-- Highlight
+			firstResult.BackgroundColor3 = C("panel2")
+		end
+	end
+	
+	input:GetPropertyChangedSignal("Text"):Connect(updateResults)
+	updateResults()
+	
+	-- Keyboard navigation
+	input.FocusLost:Connect(function(enter)
+		if enter then
+			local firstResult = results:FindFirstChildWhichIsA("TextButton")
+			if firstResult then firstResult:Fire() end
+			overlay:Destroy()
+		end
+	end)
+	
+	-- Escape to close
+	overlay.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if input.KeyCode == Enum.KeyCode.Escape then
+			overlay:Destroy()
+		elseif input.KeyCode == Enum.KeyCode.Down then
+			input:CaptureFocus()
+		end
+	end)
+	
+	input:CaptureFocus()
+end
+end
 ]]></ProtectedString>
     <bool name="DefinesCapabilities">false</bool>
     <int name="Capabilities">0</int>
