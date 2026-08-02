@@ -3202,3 +3202,189 @@ function showCommandPalette()
 	input:CaptureFocus()
 end
 end
+
+-- ============================================================ Detailed Color Picker Component
+function createColorPicker(parent, initialColor, onChange)
+	local picker = frame(parent, "ColorPicker", C("panel"))
+	picker.Size = UDim2.new(0, 200, 0, 200)
+	picker.BorderSizePixel = 0
+	corner(picker, CFG.radiusSm)
+	
+	-- Current color preview
+	local preview = inst("Frame", picker, "Preview")
+	preview.Size = UDim2.new(1, -16, 0, 40)
+	preview.Position = UDim2.new(0, 8, 0, 8)
+	preview.BackgroundColor3 = initialColor or C("indigo")
+	preview.BorderSizePixel = 0
+	corner(preview, 6)
+	
+	-- Color presets row
+	local presets = frame(picker, "Presets", Color3.fromRGB(0, 0, 0, 0))
+	presets.Size = UDim2.new(1, -16, 0, 30)
+	presets.Position = UDim2.new(0, 8, 0, 56)
+	presets.BackgroundTransparency = 1
+	
+	local presetColors = {
+		C("indigo"), C("mint"), C("amber"), C("danger"),
+		C("text"), C("textDim"), C("panel"), C("panel2"),
+		C("surface"), C("bubble"), C("assistBubble"), C("userBubble"),
+		C("accent2"), Color3.fromRGB(255, 255, 255), Color3.fromRGB(0, 0, 0)
+	}
+	
+	for i, col in ipairs(presetColors) do
+		local swatch = inst("TextButton", presets, "Swatch_" .. i)
+		swatch.Size = UDim2.new(0, 18, 0, 18)
+		swatch.Position = UDim2.new(0, (i - 1) * 14, 0, 0)
+		swatch.BackgroundColor3 = col
+		swatch.BorderSizePixel = 0
+		corner(swatch, 2)
+		swatch.ZIndex = 10
+		swatch.MouseButton1Click:Connect(function()
+			preview.BackgroundColor3 = col
+			if onChange then onChange(col) end
+		end)
+	end
+	
+	-- RGB sliders
+	for _, channel in ipairs({"R", "G", "B"}) do
+		local row = frame(picker, channel .. "Row", Color3.fromRGB(0, 0, 0, 0))
+		row.Size = UDim2.new(1, -16, 0, 20)
+		row.Position = UDim2.new(0, 8, 0, 92 + (channel == "R" and 0 or (channel == "G" and 24 or 48)))
+		row.BackgroundTransparency = 1
+		label(row, channel .. "Label", channel .. ":", 10, C("textDim"))
+		local slider = inst("TextBox", row, channel .. "Slider")
+		slider.Size = UDim2.new(1, -30, 0, 16)
+		slider.Position = UDim2.new(0, 24, 0, 2)
+		slider.BackgroundColor3 = C("panel2")
+		slider.BorderSizePixel = 0
+		slider.Text = ""
+		slider.PlaceholderText = "0-255"
+		slider.TextSize = 10
+		corner(slider, 8)
+		local fill = inst("Frame", slider, channel .. "Fill")
+		fill.Size = UDim2.new(0, 0, 1, 0)
+		fill.BackgroundColor3 = channel == "R" and Color3.fromRGB(240, 80, 80) or channel == "G" and Color3.fromRGB(80, 220, 80) or Color3.fromRGB(80, 160, 255)
+		fill.BorderSizePixel = 0
+		corner(fill, 8)
+	end
+	
+	return picker
+end
+
+-- ============================================================ Emoji Picker Component
+function showEmojiPicker(parent, onSelect)
+	local picker = frame(parent, "EmojiPicker", C("panel"))
+	picker.Size = UDim2.new(0, 320, 0, 240)
+	picker.BorderSizePixel = 0
+	corner(picker, CFG.radiusSm)
+	
+	local scrollArea = scroll(picker, "EmojiScroll")
+	scrollArea.Size = UDim2.new(1, 0, 1, 0)
+	scrollArea.BackgroundTransparency = 1
+	scrollArea.BorderSizePixel = 0
+	scrollArea.ScrollBarThickness = 5
+	
+	local layout = inst("UIGridLayout", scrollArea)
+	layout.CellSize = UDim2.new(0, 32, 0, 32)
+	layout.CellPadding = UDim2.new(0, 2, 0, 2)
+	
+	-- Emoji categories
+	local categories = {
+		{"😀", "😁", "😂", "🤣", "😃", "😄", "😅", "😆", "😇", "😉"},
+		{"❤️", "😍", "🤩", "🥰", "😘", "😗", "😚", "😙", "😚", "🤗"},
+		{"👍", "👎", "👌", "✌️", "🙏", "👏", "🎉", "🔥", "💯", "✅"},
+		{"📎", "📎", "🖼", "📊", "⚙️", "🔍", "🧩", "🔊", "📤", "📥"},
+	}
+	
+	for _, cat in ipairs(categories) do
+		for _, emoji in ipairs(cat) do
+			local btn = inst("TextButton", scrollArea, "Emoji_" .. emoji:gsub("[^%w]", ""))
+			btn.Size = UDim2.new(0, 32, 0, 32)
+			btn.BackgroundTransparency = 1
+			btn.Text = emoji
+			btn.TextSize = 20
+			btn.Font = CFG.font
+			btn.MouseButton1Click:Connect(function()
+				if onSelect then onSelect(emoji) end
+				picker:Destroy()
+			end)
+			btn.MouseEnter:Connect(function() btn.BackgroundColor3 = C("panel2") end)
+			btn.MouseLeave:Connect(function() btn.BackgroundTransparency = 1 end)
+		end
+	end
+	
+	return picker
+end
+
+-- ============================================================ File Browser Component
+function showFileBrowser(parent, onSelect)
+	local browser = frame(parent, "FileBrowser", C("panel"))
+	browser.Size = UDim2.new(0, 400, 0, 320)
+	browser.BorderSizePixel = 0
+	corner(browser, CFG.radiusSm)
+	
+	-- Header
+	local header = frame(browser, "Header", C("panel2"))
+header.Size = UDim2.new(1, 0, 0, 36)
+	httpHeader.BorderSizePixel = 0
+	label(header, "Title", "📁 File Browser", 12, C("textDim"))
+	
+	-- Path display
+	local pathLabel = label(browser, "Path", "/root", 11, C("textDim"))
+	pathLabel.Size = UDim2.new(1, -16, 0, 16)
+	pathLabel.Position = UDim2.new(0, 8, 0, 40)
+	
+	-- File list
+	local list = scroll(browser, "FileList")
+	list.Size = UDim2.new(1, -12, 1, -80)
+	list.Position = UDim2.new(0, 6, 0, 56)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 4
+	list.ScrollingDirection = Enum.ScrollingDirection.Y
+	
+	local layout = inst("UIListLayout", list)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
+	
+	-- Sample files (in real impl, fetch from API)
+	local files = {
+		{name = "src/", isDir = true},
+		{name = "README.md", isDir = false},
+		{name = "config.json", isDir = false},
+		{name = "api/", isDir = true},
+		{name = "utils.lua", isDir = false},
+	}
+	
+	for _, f in ipairs(files) do
+		local row = inst("TextButton", list, "File_" .. f.name)
+		row.Size = UDim2.new(1, 0, 0, 26)
+		row.BackgroundTransparency = 1
+		row.TextXAlignment = Enum.TextXAlignment.Left
+		row.Text = (f.isDir and "📁 " or "📄 ") .. f.name
+		row.TextColor3 = C("text")
+		row.Font = CFG.font
+		row.TextSize = 12
+		row.MouseButton1Click:Connect(function()
+			if not f.isDir then
+				if onSelect then onSelect(f.name) end
+				browser:Destroy()
+			end
+		end)
+		row.MouseEnter:Connect(function() row.BackgroundColor3 = C("panel2") end)
+		row.MouseLeave:Connect(function() row.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+	end
+	
+	-- Bottom buttons
+	local cancel = abtn(browser, "Cancel", "Cancel", C("panel2"))
+	cancel.Size = UDim2.new(0, 80, 0, 28)
+	cancel.Position = UDim2.new(0, 8, 1, -36)
+	cancel.MouseButton1Click:Connect(function() browser:Destroy() end)
+	
+	local open = abtn(browser, "Open", "Open", C("indigo"))
+	open.Size = UDim2.new(0, 80, 0, 28)
+	open.Position = UDim2.new(1, -92, 1, -36)
+	open.MouseButton1Click:Connect(function() browser:Destroy() end)
+	
+	return browser
+end
