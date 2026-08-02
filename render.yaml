@@ -2,7 +2,8 @@ services:
   # ---- API (pure JSON, no HTML) ----
   - type: web
     name: agilestudio-api
-    runtime: python-3.11
+    runtime: python
+    pythonVersion: "3.11"
     plan: free
     rootDir: backend
     buildCommand: "pip install -r requirements.txt"
@@ -42,5 +43,3 @@ staticSites:
     rootDir: site
     buildCommand: ""
     staticPublishPath: "."
-    envVars:
-      # (none needed; API_BASE is hardcoded in site/app.js — update it to your API URL)
