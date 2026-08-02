@@ -1,9 +1,11 @@
+# Render Blueprint — defines the API service only.
+# NOTE: Render Blueprints do NOT support static sites, so the website
+# (site/) is created manually: New -> Static Site, Root Directory = site,
+# Publish Directory = .  (see README "Deploy to Render").
 services:
-  # ---- API (pure JSON, no HTML) ----
   - type: web
     name: agilestudio-api
     runtime: python
-    pythonVersion: "3.11"
     plan: free
     rootDir: backend
     buildCommand: "pip install -r requirements.txt"
@@ -34,12 +36,3 @@ services:
         value: "/data/agilestudio.db"
       - key: PYTHONUNBUFFERED
         value: "1"
-
-staticSites:
-  # ---- Website (separate static deploy) ----
-  - name: agilestudio-site
-    runtime: static
-    plan: free
-    rootDir: site
-    buildCommand: ""
-    staticPublishPath: "."
