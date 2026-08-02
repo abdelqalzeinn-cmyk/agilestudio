@@ -1,13 +1,34 @@
-// AgileStudio web app logic
+// AgileStudio site — talks to the SEPARATE API service (API_BASE).
+// The API and this site are different origins; auth travels as ?session=<token>.
+const API_BASE = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ? "http://127.0.0.1:8080"          // local API (set to your API port)
+  : "https://agilestudio-api.onrender.com"; // <-- your deployed API URL
+
 const $ = (s) => document.querySelector(s);
-const api = async (method, path, body) => {
-  const opts = { method, credentials: "same-origin", headers: { "Content-Type": "application/json" } };
+
+// session token lives in localStorage (set from ?session= after OAuth, or login response)
+function getSession() { return localStorage.getItem("as_session") || ""; }
+function setSession(t) { if (t) localStorage.setItem("as_session", t); else localStorage.removeItem("as_session"); }
+
+// capture ?session= from OAuth redirect, then strip it from the URL
+(function captureSession() {
+  const p = new URLSearchParams(location.search);
+  const s = p.get("session");
+  if (s) { setSession(s); history.replaceState(null, "", location.pathname); }
+})();
+
+// API helper: always appends ?session= (and token via header for Bearer users)
+async function api(method, path, body) {
+  const url = API_BASE + path + (path.includes("?") ? "&" : "?") + "session=" + encodeURIComponent(getSession());
+  const opts = { method, headers: { "Content-Type": "application/json" } };
   if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(path, opts);
-  if (r.status === 401) { if (path !== "/auth/me") location.href = "/"; throw new Error("auth"); }
+  const r = await fetch(url, opts);
+  if (r.status === 401 && path !== "/auth/me") { setSession(""); location.href = "/"; throw new Error("auth"); }
   let data = null; try { data = await r.json(); } catch (e) {}
+  // if login/register returned a session_token, store it
+  if (data && data.session_token) setSession(data.session_token);
   return { status: r.status, data };
-};
+}
 const toast = (m) => { const t = $("#toast"); if (!t) return; t.textContent = m; t.classList.remove("hidden"); setTimeout(() => t.classList.add("hidden"), 2600); };
 
 // ---------- index: login / register / oauth ----------
@@ -18,13 +39,16 @@ if (loginForm) {
   loginForm.onsubmit = async (e) => {
     e.preventDefault();
     const r = await api("POST", "/auth/login", { email: $("#email").value, password: $("#password").value });
-    if (r.status === 200) location.href = "/dashboard"; else $("#loginErr").textContent = r.data?.detail || "Login failed";
+    if (r.status === 200 && r.data?.session_token) location.href = "/dashboard";
+    else $("#loginErr").textContent = r.data?.detail || "Login failed";
   };
   registerForm.onsubmit = async (e) => {
     e.preventDefault();
     const r = await api("POST", "/auth/register", { email: $("#regEmail").value, name: $("#regName").value, password: $("#regPassword").value });
-    if (r.status === 200 || r.status === 302) location.href = "/dashboard"; else $("#regErr").textContent = r.data?.detail || "Register failed";
+    if (r.status === 200 && r.data?.session_token) location.href = "/dashboard";
+    else $("#regErr").textContent = r.data?.detail || "Register failed";
   };
+  // Roblox OAuth: ask the API for the authorize URL, then go there
   $("#robloxBtn").onclick = async () => {
     const r = await api("GET", "/auth/roblox/start?redirect_after=/dashboard");
     if (r.data?.authorization_url) location.href = r.data.authorization_url;
@@ -64,8 +88,10 @@ if ($("#createToken")) {
     }
   };
   loadUsage(); loadTokens();
-  const me = await api("GET", "/auth/me");
-  if (me.data?.is_admin) $("#adminLinkWrap").classList.remove("hidden");
+  (async () => {
+    const me = await api("GET", "/auth/me");
+    if (me.data?.is_admin) $("#adminLinkWrap").classList.remove("hidden");
+  })();
 }
 
 // ---------- admin ----------

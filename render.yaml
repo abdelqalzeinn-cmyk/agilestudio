@@ -1,0 +1,46 @@
+services:
+  # ---- API (pure JSON, no HTML) ----
+  - type: web
+    name: agilestudio-api
+    runtime: python-3.11
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: FREELLMAPI_KEY
+        sync: false
+      - key: FREELLMAPI_URL
+        value: "https://freellmapi-cliz.onrender.com"
+      - key: AGILESTUDIO_OWNER_EMAIL
+        sync: false
+      - key: AGILESTUDIO_ADMIN_API_KEY
+        sync: false
+      - key: ROBLOX_OAUTH_CLIENT_ID
+        sync: false
+      - key: ROBLOX_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: ROBLOX_OAUTH_REDIRECT
+        value: "https://agilestudio-api.onrender.com/auth/roblox/callback"
+      - key: API_BASE
+        value: "https://agilestudio-api.onrender.com"
+      - key: SITE_BASE
+        value: "https://agilestudio.onrender.com"
+      - key: CORS_ORIGINS
+        value: "https://agilestudio.onrender.com"
+      - key: AGILESTUDIO_DB
+        value: "/data/agilestudio.db"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+staticSites:
+  # ---- Website (separate static deploy) ----
+  - name: agilestudio-site
+    runtime: static
+    plan: free
+    rootDir: site
+    buildCommand: ""
+    staticPublishPath: "."
+    envVars:
+      # (none needed; API_BASE is hardcoded in site/app.js — update it to your API URL)

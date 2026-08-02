@@ -1,18 +1,20 @@
 """
-AgileStudio Platform — backend.
+AgileStudio Platform — API backend (pure JSON API, no HTML).
+
+This service is the API only. The website lives in /site and is deployed as a
+separate static site that calls this API via API_BASE.
 
 Features:
-- Static website (login / dashboard / admin) served from ./web
 - Auth: email+password OR Roblox OAuth, session cookies
-- API tokens (agst_…) minted in the dashboard, used as Bearer by the plugin
+- API tokens (agst_…) minted via /tokens, used as Bearer by the plugin + site
 - Usage + quota tracking per user/token
 - Chat: POST /conversations (Bearer-gated, usage counted, streams to /operations/{id}/events)
 - Admin: /admin/* gated by admin session OR AGILESTUDIO_ADMIN_API_KEY
-- Tools: full set with permission flow (same contract as before)
+- Tools: full set with permission flow
 
 Env:
   FREELLMAPI_KEY, FREELLMAPI_URL, AGILESTUDIO_OWNER_EMAIL, AGILESTUDIO_ADMIN_API_KEY,
-  ROBLOX_OAUTH_CLIENT_ID/SECRET, ROBLOX_OAUTH_REDIRECT, PORT
+  ROBLOX_OAUTH_CLIENT_ID/SECRET, ROBLOX_OAUTH_REDIRECT, API_BASE, PORT, CORS_ORIGINS
 """
 import os
 import json
@@ -23,16 +25,24 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException, Cookie, Header
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 import db
 import auth
 import usage as usagemod
 
 ROOT = Path(os.path.dirname(os.path.abspath(__file__)))
-WEB = ROOT.parent / "web"  # site lives at repo root /web (ROOT is backend/)
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
+
+# Public base URL of THIS api (used to build OAuth redirect/callback URLs).
+API_BASE = os.environ.get("API_BASE", "").rstrip("/")
+# Comma-separated list of allowed site origins for CORS.
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if not CORS_ORIGINS:
+    # sensible default so local dev + the deployed site both work
+    CORS_ORIGINS = ["http://127.0.0.1:3000", "https://agilestudio.onrender.com"]
 
 FREELLMAPI_URL = os.environ.get("FREELLMAPI_URL", "https://freellmapi-cliz.onrender.com").rstrip("/")
 FREELLMAPI_KEY = os.environ.get("FREELLMAPI_KEY", "")
@@ -203,12 +213,13 @@ def _handle_conversation(model_id, message, conversation_id, token_id, user_id):
 
 
 # ---- auth dependency helpers ----
-def current_user(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
+def current_user(request: Request):
     # 1) admin API key (header) -> full admin
+    x_api_key = request.headers.get("x-api-key", "")
     if x_api_key:
         u = auth.admin_via_apikey(x_api_key)
         if u: return u
-    # 2) API token in Authorization: Bearer <token>
+    # 2) API token in Authorization: Bearer ***
     authz = request.headers.get("authorization", "")
     tok_value = None
     if authz.lower().startswith("bearer "):
@@ -221,57 +232,48 @@ def current_user(request: Request, session_token: str = Cookie(default=""), x_ap
         if t:
             u = db.q("SELECT * FROM users WHERE id=?", (t["user_id"],))
             return u[0] if u else None
-    # 4) session cookie
-    if session_token:
-        return auth.get_user_from_session(session_token)
+    # 4) session token via header OR cookie OR ?session= query
+    sess = (request.headers.get("x-session-token")
+            or request.cookies.get("session_token")
+            or request.query_params.get("session")
+            or "")
+    if sess:
+        return auth.get_user_from_session(sess)
     return None
 
 
-def require_user(request, session_token, x_api_key):
-    u = current_user(request, session_token, x_api_key)
+def require_user(request):
+    u = current_user(request)
     if not u:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return u
 
 
-def require_admin(request, session_token, x_api_key):
-    u = current_user(request, session_token, x_api_key)
+def require_admin(request):
+    u = current_user(request)
     if not auth.is_admin_user(u):
         raise HTTPException(status_code=403, detail="Admin only")
     return u
 
 
-app = FastAPI(title="AgileStudio Platform", version="1.0.0")
+
+# ---- API tokens (minted in dashboard, used by plugin) ----
+app = FastAPI(title="AgileStudio Platform API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-# ---- static web ----
-@app.get("/", response_class=HTMLResponse)
-def index():
-    return FileResponse(WEB / "index.html")
-
-@app.get("/dashboard", response_class=HTMLResponse)
-def dashboard():
-    return FileResponse(WEB / "dashboard.html")
-
-@app.get("/admin", response_class=HTMLResponse)
-def admin_page():
-    return FileResponse(WEB / "admin.html")
-
-@app.get("/terms", response_class=HTMLResponse)
-def terms_page():
-    return FileResponse(WEB / "terms.html")
-
-@app.get("/privacy", response_class=HTMLResponse)
-def privacy_page():
-    return FileResponse(WEB / "privacy.html")
-
-@app.get("/app.js")
-def appjs():
-    return FileResponse(WEB / "app.js", media_type="application/javascript")
-
-@app.get("/style.css")
-def stylecss():
-    return FileResponse(WEB / "style.css", media_type="text/css")
+# ---- API info (no HTML) ----
+@app.get("/")
+def root():
+    return {"service": "agilestudio-api", "version": "1.0.0",
+            "docs": "/health", "note": "This is the JSON API. The site is deployed separately."}
 
 
 # ---- health / models ----
@@ -297,9 +299,8 @@ async def register(request: Request):
         return JSONResponse({"detail":"email already registered"}, status_code=409)
     uid = auth.create_user(email, name, pw)
     tok = auth.create_session(uid)
-    resp = RedirectResponse("/dashboard", status_code=302)
-    resp.set_cookie("session_token", tok, httponly=True, samesite="lax", max_age=60*60*24*7)
-    return resp
+    return {"ok":True,"session_token":tok,"is_admin":bool(db.q("SELECT is_admin FROM users WHERE id=?",(uid,))[0]["is_admin"])}
+
 
 @app.post("/auth/login")
 async def login(request: Request):
@@ -310,45 +311,48 @@ async def login(request: Request):
     if not u:
         return JSONResponse({"detail":"invalid credentials"}, status_code=401)
     tok = auth.create_session(u["id"])
-    resp = JSONResponse({"ok":True,"is_admin":bool(u["is_admin"])})
-    resp.set_cookie("session_token", tok, httponly=True, samesite="lax", max_age=60*60*24*7)
-    return resp
+    return {"ok":True,"session_token":tok,"is_admin":bool(u["is_admin"])}
+@app.get("/auth/me")
+def auth_me(request: Request):
+    u = current_user(request)
+    if not u:
+        return JSONResponse({"authenticated": False}, status_code=401)
+    return {"authenticated": True, "id": u["id"], "email": u["email"], "name": u["name"], "is_admin": bool(u["is_admin"]), "roblox_username": u["roblox_username"]}
+
+
+SITE_BASE = os.environ.get("SITE_BASE", "").rstrip("/") or (API_BASE.replace("api.", "") if API_BASE else "http://127.0.0.1:3000")
+
 
 @app.get("/auth/logout")
-def logout(session_token: str = Cookie(default="")):
-    if session_token:
-        db.execute("DELETE FROM sessions WHERE token=?", (session_token,))
-    resp = RedirectResponse("/", status_code=302)
-    resp.delete_cookie("session_token")
-    return resp
-
-@app.get("/auth/me")
-def auth_me(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = current_user(request, session_token, x_api_key)
-    if not u:
-        return JSONResponse({"authenticated":False}, status_code=401)
-    return {"authenticated":True,"id":u["id"],"email":u["email"],"name":u["name"],"is_admin":bool(u["is_admin"]),"roblox_username":u["roblox_username"]}
+def logout(session_token: str = Cookie(default=""), x_session_token: str = Header(default="")):
+    sess = x_session_token or session_token
+    if sess:
+        db.execute("DELETE FROM sessions WHERE token=?", (sess,))
+    return {"ok": True}
 
 
 # ---- Roblox OAuth ----
 @app.get("/auth/roblox/start")
 def roblox_start(redirect_after: str = "/dashboard"):
     state = uuid.uuid4().hex
+    db.execute("INSERT OR REPLACE INTO oauth_state (state, redirect_after, created_at) VALUES (?,?,?)",
+               (state, redirect_after, int(time.time())))
     url = auth.roblox_authorize_url(state, redirect_after)
     return {"authorization_url": url}
+
 
 @app.get("/auth/roblox/callback")
 def roblox_callback(code: str = "", state: str = "", error: str = ""):
     if error:
-        return RedirectResponse(f"/?oauth_error={error}", status_code=302)
+        return RedirectResponse(f"{SITE_BASE}/?oauth_error={error}", status_code=302)
     st = db.q("SELECT * FROM oauth_state WHERE state=?", (state,))
     after = st[0]["redirect_after"] if st else "/dashboard"
     tok = auth.roblox_exchange(code)
     if not tok:
-        return RedirectResponse("/?oauth_error=token", status_code=302)
-    info = auth.roblox_userinfo(tok.get("access_token",""))
+        return RedirectResponse(f"{SITE_BASE}/?oauth_error=token", status_code=302)
+    info = auth.roblox_userinfo(tok.get("access_token", ""))
     if not info:
-        return RedirectResponse("/?oauth_error=userinfo", status_code=302)
+        return RedirectResponse(f"{SITE_BASE}/?oauth_error=userinfo", status_code=302)
     rid = str(info.get("sub") or info.get("id"))
     uname = info.get("preferred_username") or info.get("name") or "roblox_user"
     rows = db.q("SELECT * FROM users WHERE roblox_id=?", (rid,))
@@ -358,21 +362,20 @@ def roblox_callback(code: str = "", state: str = "", error: str = ""):
         email = f"roblox:{rid}@agilestudio.local"
         uid = auth.create_user(email, uname, None, rid, uname)
     sess = auth.create_session(uid)
-    resp = RedirectResponse(after, status_code=302)
-    resp.set_cookie("session_token", sess, httponly=True, samesite="lax", max_age=60*60*24*7)
-    return resp
+    # cross-origin: hand the session token back to the site via the URL
+    return RedirectResponse(f"{SITE_BASE}{after}?session={sess}", status_code=302)
 
 
 # ---- API tokens (minted in dashboard, used by plugin) ----
 @app.get("/tokens")
 def list_tokens(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = require_user(request, session_token, x_api_key)
+    u = require_user(request)
     rows = db.q("SELECT id,name,token,scopes,created_at,last_used,revoked FROM apitokens WHERE user_id=?", (u["id"],))
     return {"tokens":[dict(r) for r in rows]}
 
 @app.post("/tokens")
 async def create_token(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = require_user(request, session_token, x_api_key)
+    u = require_user(request)
     body = await request.body()
     data = json.loads(body) if body else {}
     name = data.get("name") or "Untitled"
@@ -382,7 +385,7 @@ async def create_token(request: Request, session_token: str = Cookie(default="")
 
 @app.post("/tokens/revoke")
 async def revoke_token(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = require_user(request, session_token, x_api_key)
+    u = require_user(request)
     body = await request.body()
     data = json.loads(body) if body else {}
     tid = data.get("id") or ""
@@ -393,14 +396,14 @@ async def revoke_token(request: Request, session_token: str = Cookie(default="")
 # ---- usage ----
 @app.get("/usage")
 def get_usage(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = require_user(request, session_token, x_api_key)
+    u = require_user(request)
     return usagemod.daily_usage(u["id"])
 
 
 # ---- chat (Bearer-gated; usage counted) ----
 @app.post("/conversations")
 async def conversations_post(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = require_user(request, session_token, x_api_key)
+    u = require_user(request)
     ok, msg = usagemod.check_quota(u["id"])
     if not ok:
         return JSONResponse({"detail":msg}, status_code=429)
@@ -417,7 +420,7 @@ async def conversations_post(request: Request, session_token: str = Cookie(defau
 
 @app.post("/conversations/{conversation_id}/messages")
 async def conversation_messages(conversation_id: str, request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    u = require_user(request, session_token, x_api_key)
+    u = require_user(request)
     ok, msg = usagemod.check_quota(u["id"])
     if not ok:
         return JSONResponse({"detail":msg}, status_code=429)
@@ -467,7 +470,7 @@ def conversations_timeline(conversation_id: str):
 # ---- ADMIN (admin-only) ----
 @app.get("/admin/stats")
 def admin_stats(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    require_admin(request, session_token, x_api_key)
+    require_admin(request)
     users = db.q("SELECT COUNT(*) AS c FROM users")[0]["c"]
     tokens = db.q("SELECT COUNT(*) AS c FROM apitokens WHERE revoked=0")[0]["c"]
     usage_today = db.q("SELECT COUNT(*) AS c, COALESCE(SUM(cost),0) AS cost FROM usage WHERE created_at > ?", (int(time.time())-86400,))[0]
@@ -475,13 +478,13 @@ def admin_stats(request: Request, session_token: str = Cookie(default=""), x_api
 
 @app.get("/admin/users")
 def admin_users(request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    require_admin(request, session_token, x_api_key)
+    require_admin(request)
     rows = db.q("SELECT id,email,name,is_admin,created_at FROM users ORDER BY created_at DESC LIMIT 200")
     return {"users":[dict(r) for r in rows]}
 
 @app.post("/admin/users/{user_id}/quota")
 async def admin_set_quota(user_id: str, request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    require_admin(request, session_token, x_api_key)
+    require_admin(request)
     body = await request.body()
     data = json.loads(body) if body else {}
     db.execute("INSERT OR REPLACE INTO quotas (user_id,daily_requests,daily_cost) VALUES (?,?,?)",
@@ -490,6 +493,6 @@ async def admin_set_quota(user_id: str, request: Request, session_token: str = C
 
 @app.post("/admin/users/{user_id}/admin")
 async def admin_promote(user_id: str, request: Request, session_token: str = Cookie(default=""), x_api_key: str = Header(default="")):
-    require_admin(request, session_token, x_api_key)
+    require_admin(request)
     db.execute("UPDATE users SET is_admin=1 WHERE id=?", (user_id,))
     return {"ok":True}
