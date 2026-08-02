@@ -30,7 +30,7 @@ import auth
 import usage as usagemod
 
 ROOT = Path(os.path.dirname(os.path.abspath(__file__)))
-WEB = ROOT / "web"
+WEB = ROOT.parent / "web"  # site lives at repo root /web (ROOT is backend/)
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
