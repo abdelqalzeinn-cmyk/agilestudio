@@ -1,7 +1,7 @@
 --!strict
--- AgileStudio Plugin — a fresh Roblox Studio AI assistant (expanded build).
--- Bold branded dark/light UI, mascot everywhere, multi-chat, streaming, tools.
--- No code copied from any other plugin; built from scratch.
+-- AgileStudio Plugin — full rebuild, rich UI matching AgileBot quality.
+-- Same endpoints, fresh UI. No code copied from AgileBot.
+-- Bold branded dark theme, mascot SVG, multi-chat, streaming, tools.
 
 -- ============================================================ Services
 local HttpService = game:GetService("HttpService")
@@ -9,40 +9,184 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local StudioService = nil
-pcall(function() StudioService = game:GetService("StudioService") end)
 
 local PLUGIN = (typeof(plugin) == "Instance" and plugin) or nil
+if not PLUGIN and type(plugin) == "userdata" then PLUGIN = plugin end
 
--- ============================================================ Palette
-local RGB = {
-	dark = {
-		bg = {18,18,30}, panel = {30,30,48}, panel2 = {24,24,40}, surface = {42,42,66},
-		indigo = {91,91,214}, indigoLight = {150,150,245}, mint = {61,220,151}, amber = {255,178,62},
-		text = {240,240,248}, textDim = {165,168,188}, userBubble = {91,91,214},
-		assistBubble = {38,38,60}, danger = {240,90,110}, code = {20,22,34}, border = {60,60,92},
-	},
-	light = {
-		bg = {244,245,250}, panel = {255,255,255}, panel2 = {238,240,248}, surface = {228,231,242},
-		indigo = {91,91,214}, indigoLight = {110,110,230}, mint = {40,170,120}, amber = {230,150,40},
-		text = {30,32,48}, textDim = {110,114,140}, userBubble = {91,91,214},
-		assistBubble = {235,237,245}, danger = {220,70,90}, code = {246,247,251}, border = {210,214,228},
-	},
-}
-local function col(t, key)
-	local a = t[key]
-	return Color3.fromRGB(a[1], a[2], a[3])
-end
-local THEME = "dark"
-local function P() return RGB[THEME] end
-local function C(key) return col(P(), key) end
-
--- ============================================================ Config / settings
-local SET = {
+-- ============================================================ Constants
+local CFG = {
 	backend = "https://agilestudio.onrender.com",
 	theme = "dark",
+	appearance = "claude",
 	model = "",
 	token = "",
+	autoTools = {},
+	homePollSeconds = 8,
+	maxMessagesPerConv = 200,
+	maxConversations = 50,
+	font = Enum.Font.Gotham,
+	fontCode = Enum.Font.Code,
+	fontMedium = Enum.Font.GothamMedium,
+	fontBold = Enum.Font.GothamBold,
+	titleSize = 16,
+	bodySize = 14,
+	smallSize = 12,
+	radius = 12,
+	radiusSm = 8,
+	radiusLg = 16,
+	border = 1,
+	borderColor = Color3.fromRGB(60, 60, 92),
+	animDuration = 0.18,
+}
+
+-- ============================================================ Palette System
+local PALETTES = {}
+
+PALETTES.dark = {
+	bg = Color3.fromRGB(16, 16, 20),
+	panel = Color3.fromRGB(22, 22, 30),
+	panel2 = Color3.fromRGB(28, 28, 38),
+	surface = Color3.fromRGB(42, 42, 66),
+	indigo = Color3.fromRGB(91, 91, 214),
+	indigoLight = Color3.fromRGB(150, 150, 245),
+	mint = Color3.fromRGB(61, 220, 151),
+	amber = Color3.fromRGB(255, 178, 62),
+	text = Color3.fromRGB(240, 240, 248),
+	textDim = Color3.fromRGB(165, 168, 188),
+	userBubble = Color3.fromRGB(91, 91, 214),
+	assistBubble = Color3.fromRGB(38, 38, 60),
+	danger = Color3.fromRGB(240, 90, 110),
+	code = Color3.fromRGB(20, 22, 34),
+	border = Color3.fromRGB(60, 60, 92),
+	accent = Color3.fromRGB(211, 80, 56),
+	accent2 = Color3.fromRGB(217, 119, 6),
+	good = Color3.fromRGB(60, 180, 120),
+	bad = Color3.fromRGB(220, 90, 90),
+	thinkingTxt = Color3.fromRGB(160, 165, 200),
+	userTxt = Color3.fromRGB(240, 240, 248),
+	assistTxt = Color3.fromRGB(210, 210, 225),
+	bubble = Color3.fromRGB(30, 30, 42),
+	permBg = Color3.fromRGB(24, 24, 36),
+	composer = Color3.fromRGB(50, 50, 52),
+	send = Color3.fromRGB(91, 91, 214),
+	sendTxt = Color3.fromRGB(255, 255, 255),
+	input = Color3.fromRGB(240, 240, 248),
+	placeholder = Color3.fromRGB(120, 124, 150),
+	inputBg = Color3.fromRGB(38, 38, 52),
+	inputBorder = Color3.fromRGB(60, 60, 92),
+	panelBorder = Color3.fromRGB(50, 50, 72),
+	scrollbar = Color3.fromRGB(91, 91, 214),
+	avatarUser = Color3.fromRGB(91, 91, 214),
+	avatarAssist = Color3.fromRGB(217, 119, 6),
+	avatarThinking = Color3.fromRGB(211, 80, 56),
+	statusGood = Color3.fromRGB(60, 180, 120),
+	statusWarn = Color3.fromRGB(255, 178, 62),
+	statusError = Color3.fromRGB(240, 90, 110),
+	tooltipBg = Color3.fromRGB(40, 40, 56),
+	tooltipText = Color3.fromRGB(220, 220, 235),
+	chipBg = Color3.fromRGB(36, 36, 50),
+	chipText = Color3.fromRGB(200, 200, 220),
+	chipBorder = Color3.fromRGB(55, 55, 78),
+	planStepBg = Color3.fromRGB(32, 32, 48),
+	planStepBorder = Color3.fromRGB(91, 91, 214),
+	diffAddBg = Color3.fromRGB(20, 40, 30),
+	diffAddText = Color3.fromRGB(120, 220, 150),
+	diffRemoveBg = Color3.fromRGB(40, 20, 20),
+	diffRemoveText = Color3.fromRGB(220, 130, 130),
+	diffLineNum = Color3.fromRGB(100, 100, 130),
+	diffCode = Color3.fromRGB(200, 200, 215),
+	toolYesBg = Color3.fromRGB(60, 180, 120),
+	toolNoBg = Color3.fromRGB(220, 90, 90),
+	toolAlwaysBg = Color3.fromRGB(217, 119, 6),
+	toolCardBg = Color3.fromRGB(28, 28, 42),
+	toolCardBorder = Color3.fromRGB(60, 60, 92),
+	soundSlider = Color3.fromRGB(91, 91, 214),
+	modCardBg = Color3.fromRGB(30, 30, 44),
+	modCardBorder = Color3.fromRGB(55, 55, 78),
+	modTagBg = Color3.fromRGB(91, 91, 214),
+	modTagText = Color3.fromRGB(255, 255, 255),
+}
+
+PALETTES.light = {
+	bg = Color3.fromRGB(244, 245, 250),
+	panel = Color3.fromRGB(255, 255, 255),
+	panel2 = Color3.fromRGB(238, 240, 248),
+	surface = Color3.fromRGB(228, 231, 242),
+	indigo = Color3.fromRGB(91, 91, 214),
+	indigoLight = Color3.fromRGB(110, 110, 230),
+	mint = Color3.fromRGB(40, 170, 120),
+	amber = Color3.fromRGB(230, 150, 40),
+	text = Color3.fromRGB(30, 32, 48),
+	textDim = Color3.fromRGB(110, 114, 140),
+	userBubble = Color3.fromRGB(91, 91, 214),
+	assistBubble = Color3.fromRGB(235, 237, 245),
+	danger = Color3.fromRGB(220, 70, 90),
+	code = Color3.fromRGB(246, 247, 251),
+	border = Color3.fromRGB(210, 214, 228),
+	accent = Color3.fromRGB(211, 80, 56),
+	accent2 = Color3.fromRGB(217, 119, 6),
+	good = Color3.fromRGB(40, 160, 100),
+	bad = Color3.fromRGB(200, 60, 80),
+	thinkingTxt = Color3.fromRGB(100, 105, 130),
+	userTxt = Color3.fromRGB(30, 32, 48),
+	assistTxt = Color3.fromRGB(60, 62, 80),
+	bubble = Color3.fromRGB(240, 242, 248),
+	permBg = Color3.fromRGB(240, 242, 248),
+	composer = Color3.fromRGB(255, 255, 255),
+	send = Color3.fromRGB(91, 91, 214),
+	sendTxt = Color3.fromRGB(255, 255, 255),
+	input = Color3.fromRGB(30, 32, 48),
+	placeholder = Color3.fromRGB(150, 154, 170),
+	inputBg = Color3.fromRGB(250, 250, 252),
+	inputBorder = Color3.fromRGB(210, 214, 228),
+	panelBorder = Color3.fromRGB(210, 214, 228),
+	scrollbar = Color3.fromRGB(91, 91, 214),
+	avatarUser = Color3.fromRGB(91, 91, 214),
+	avatarAssist = Color3.fromRGB(217, 119, 6),
+	avatarThinking = Color3.fromRGB(211, 80, 56),
+	statusGood = Color3.fromRGB(40, 160, 100),
+	statusWarn = Color3.fromRGB(230, 150, 40),
+	statusError = Color3.fromRGB(220, 70, 90),
+	tooltipBg = Color3.fromRGB(40, 40, 56),
+	tooltipText = Color3.fromRGB(255, 255, 255),
+	chipBg = Color3.fromRGB(235, 237, 245),
+	chipText = Color3.fromRGB(50, 52, 70),
+	chipBorder = Color3.fromRGB(210, 214, 228),
+	planStepBg = Color3.fromRGB(240, 242, 248),
+	planStepBorder = Color3.fromRGB(91, 91, 214),
+	diffAddBg = Color3.fromRGB(220, 245, 225),
+	diffAddText = Color3.fromRGB(20, 100, 50),
+	diffRemoveBg = Color3.fromRGB(255, 230, 230),
+	diffRemoveText = Color3.fromRGB(180, 30, 30),
+	diffLineNum = Color3.fromRGB(140, 144, 160),
+	diffCode = Color3.fromRGB(50, 52, 70),
+	toolYesBg = Color3.fromRGB(40, 160, 100),
+	toolNoBg = Color3.fromRGB(200, 60, 80),
+	toolAlwaysBg = Color3.fromRGB(230, 150, 40),
+	toolCardBg = Color3.fromRGB(250, 250, 252),
+	toolCardBorder = Color3.fromRGB(210, 214, 228),
+	soundSlider = Color3.fromRGB(91, 91, 214),
+	modCardBg = Color3.fromRGB(248, 248, 252),
+	modCardBorder = Color3.fromRGB(210, 214, 228),
+	modTagBg = Color3.fromRGB(91, 91, 214),
+	modTagText = Color3.fromRGB(255, 255, 255),
+}
+
+local function C(key)
+	local pal = PALETTES[CFG.theme] or PALETTES.dark
+	return pal[key] or Color3.fromRGB(128, 128, 128)
+end
+
+local function isDarkMode()
+	return CFG.theme == "dark"
+end
+-- ============================================================ Config / Settings
+local SET = {
+	backend = CFG.backend,
+	theme = CFG.theme,
+	appearance = CFG.appearance,
+	model = CFG.model,
+	token = CFG.token,
 	autoTools = {},
 }
 local SETTING_KEY = "AgileStudioSettings"
@@ -56,864 +200,1110 @@ local function loadSettings()
 		end
 	else
 		pcall(function()
-			local f = isfile and nil
+			local f = isfile and isfile("AgileStudioSettings.json")
+			if f then SET = HttpService:JSONDecode(readfile("AgileStudioSettings.json")) end
 		end)
 	end
-	THEME = SET.theme or "dark"
+	CFG.theme = SET.theme or "dark"
+	CFG.appearance = SET.appearance or "claude"
+	CFG.model = SET.model or ""
+	CFG.token = SET.token or ""
+	CFG.backend = SET.backend or CFG.backend
 end
+
 local function saveSettings()
-	if PLUGIN then
-		pcall(function() PLUGIN:SetSetting(SETTING_KEY, HttpService:JSONEncode(SET)) end)
-	end
-end
-
--- ============================================================ Small UI helpers
-local function inst(class, parent, name)
-	local o = Instance.new(class)
-	if name then o.Name = name end
-	if parent then o.Parent = parent end
-	return o
-end
-local function corner(o, r)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, r or 8)
-	c.Parent = o
-	return c
-end
-local function stroke(o, color, w, transparent)
-	local s = Instance.new("UIStroke")
-	s.Color = color or C("border")
-	s.Thickness = w or 1
-	s.Transparency = transparent or 0
-	s.ApplyStrokeTransparencyToCorners = true
-	s.Parent = o
-	return s
-end
-local function pad(o, p)
-	local u = Instance.new("UIPadding")
-	u.PaddingTop = UDim.new(0, p); u.PaddingBottom = UDim.new(0, p)
-	u.PaddingLeft = UDim.new(0, p); u.PaddingRight = UDim.new(0, p)
-	u.Parent = o
-	return u
-end
-local function listlayout(parent, pad, align, dir, fill)
-	local l = Instance.new("UIListLayout")
-	l.Padding = UDim.new(0, pad or 6)
-	l.SortOrder = Enum.SortOrder.LayoutOrder
-	if align then l.HorizontalAlignment = align end
-	if dir then l.FillDirection = dir end
-	if fill ~= nil then l.FillDirection = fill end
-	l.Parent = parent
-	return l
-end
-local function label(parent, name, text, size, color, align, font)
-	local t = inst("TextLabel", parent, name)
-	t.BackgroundTransparency = 1
-	t.Font = font or Enum.Font.Gotham
-	t.Text = text or ""
-	t.TextSize = size or 14
-	t.TextColor3 = color or C("text")
-	t.TextXAlignment = align or Enum.TextXAlignment.Left
-	t.TextWrapped = true
-	t.AutomaticSize = Enum.AutomaticSize.Y
-	t.Size = UDim2.new(1, 0, 0, 0)
-	t.RichText = true
-	return t
-end
-local function button(parent, name, text, color, textColor)
-	local b = inst("TextButton", parent, name)
-	b.BackgroundColor3 = color or C("indigo")
-	b.TextColor3 = textColor or C("text")
-	b.Font = Enum.Font.GothamMedium
-	b.TextSize = 14
-	b.Text = text or ""
-	b.AutoButtonColor = false
-	b.ClipsDescendants = true
-	corner(b, 8)
-	return b
-end
-local function iconButton(parent, name, text, color)
-	local b = button(parent, name, text, color or C("panel2"))
-	b.TextColor3 = C("text")
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 16
-	return b
-end
-
--- ============================================================ Toast
-local Toasts = { gui = nil, list = nil }
-local function ensureToasts()
-	if Toasts.gui then return end
-	local g = inst("ScreenGui", CoreGui, "AgileStudioToasts")
-	g.ResetOnSpawn = false
-	local f = inst("Frame", g, "Wrap")
-	f.Size = UDim2.new(0, 280, 1, 0)
-	f.Position = UDim2.new(1, -300, 0, 12)
-	f.BackgroundTransparency = 1
-	listlayout(f, 8, Enum.HorizontalAlignment.Right, Enum.FillDirection.Vertical)
-	Toasts.gui = g; Toasts.list = f
-end
-local function toast(msg, kind)
-	ensureToasts()
-	local c = (kind == "error" and C("danger")) or (kind == "ok" and C("mint")) or C("indigo")
-	local t = inst("Frame", Toasts.list, "Toast")
-	t.AutomaticSize = Enum.AutomaticSize.Y
-	t.BackgroundColor3 = C("panel")
-	t.BackgroundTransparency = 0.05
-	t.Size = UDim2.new(1, 0, 0, 0)
-	corner(t, 10); stroke(t, c, 1.5)
-	pad(t, 10)
-	label(t, "Msg", msg, 13, C("text"))
-	t.BackgroundTransparency = 0
-	local born = tick()
-	task.spawn(function()
-		task.wait(3.2)
-		local fade = TweenService:Create(t, TweenInfo.new(0.4), {BackgroundTransparency = 1})
-		fade:Play(); task.wait(0.45); t:Destroy()
-	end)
-end
-
--- ============================================================ Mascot (vector, on-brand)
-local function buildMascot(parent, size, opts)
-	opts = opts or {}
-	local m = inst("Frame", parent, "Mascot")
-	m.Size = size or UDim2.new(0, 38, 0, 38)
-	m.BackgroundColor3 = C("indigo")
-	m.BackgroundTransparency = 0
-	m.AnchorPoint = Vector2.new(0.5, 0.5)
-	corner(m, 18); stroke(m, C("indigoLight"), 2)
-	local belly = inst("Frame", m, "Belly")
-	belly.Size = UDim2.new(0.7, 0, 0.7, 0)
-	belly.Position = UDim2.new(0.15, 0, 0.25, 0)
-	belly.BackgroundColor3 = C("indigoLight")
-	belly.BackgroundTransparency = 0.4
-	corner(belly, 14)
-	local function eye(x)
-		local e = inst("Frame", m, "Eye")
-		e.Size = UDim2.new(0.16, 0, 0.16, 0)
-		e.Position = UDim2.new(x, 0, 0.4, 0)
-		e.AnchorPoint = Vector2.new(0.5, 0.5)
-		e.BackgroundColor3 = C("text"); corner(e, 6)
-		local p = inst("Frame", e, "Pupil")
-		p.Size = UDim2.new(0.5, 0, 0.5, 0); p.AnchorPoint = Vector2.new(0.5,0.5)
-		p.Position = UDim2.new(0.5,0,0.5,0); p.BackgroundColor3 = Color3.new(0.1,0.1,0.15); corner(p,4)
-		return e
-	end
-	eye(0.38); eye(0.62)
-	local ant = inst("Frame", m, "Antenna")
-	ant.Size = UDim2.new(0.03, 0, 0.22, 0)
-	ant.Position = UDim2.new(0.5, 0, -0.18, 0)
-	ant.AnchorPoint = Vector2.new(0.5, 1)
-	ant.BackgroundColor3 = C("indigoLight")
-	local glow = inst("Frame", m, "Glow")
-	glow.Size = UDim2.new(0.2, 0, 0.2, 0)
-	glow.Position = UDim2.new(0.5, 0, -0.34, 0)
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.BackgroundColor3 = C("amber"); corner(glow, 8)
-	local gt = TweenService:Create(glow, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = 0.35})
-	gt:Play()
-	if opts.bob then
-		local bob = TweenService:Create(m, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Rotation = 6})
-		bob:Play()
-	end
-	return m
+	SET.theme = CFG.theme
+	SET.appearance = CFG.appearance
+	SET.model = CFG.model
+	SET.token = CFG.token
+	SET.backend = CFG.backend
+	local s = HttpService:JSONEncode(SET)
+	if PLUGIN then pcall(function() PLUGIN:SetSetting(SETTING_KEY, s) end)
+	else pcall(function() writefile("AgileStudioSettings.json", s) end) end
 end
 
 -- ============================================================ State
 local State = {
-	backend = SET.backend,
 	conversations = {},
 	activeId = nil,
 	models = {},
 	modelsLoaded = false,
-	isSending = false,
-	pollToken = nil,
-	activeOp = nil,
-	allowAlways = {},   -- tool_name -> true
-}
-local UI = {
-	root = nil, chatScroll = nil, composer = nil, input = nil, sendBtn = nil,
-	stopBtn = nil, modelLabel = nil, sidebar = nil, sidebarList = nil,
-	topStatus = nil, drawer = nil, drawerTitle = nil, drawerBody = nil,
-	dock = nil, mascotTop = nil, thinking = false,
+	sidebarList = nil,
+	chatScroll = nil,
+	chatLayout = nil,
+	composer = nil,
+	input = nil,
+	sendBtn = nil,
+	stopBtn = nil,
+	modelLabel = nil,
+	drawer = nil,
+	drawerBody = nil,
+	drawerTitle = nil,
+	panelBody = nil,
+	gui = nil,
+	dockEnabled = false,
+	stopping = false,
+	pollingOps = {},
+	usageData = nil,
+	tokenMeter = nil,
 }
 
--- Conversation shape:
--- { id, name, backendId=nil, messages={{role, text, ts, reasoning, tool}}, created }
-local function newConversation(name)
-	local c = { id = HttpService:GenerateGUID(false), name = name or "New Chat",
-		backendId = nil, messages = {}, created = os.time() }
+-- ============================================================ Helpers
+local function inst(c, par, n)
+	local o = Instance.new(c)
+	if n then o.Name = n end
+	o.Parent = par
+	return o
+end
+
+local function corner(o, r)
+	if r and r > 0 then
+		pcall(function()
+			local u = Instance.new("UICorner")
+			u.CornerRadius = UDim.new(0, r)
+			u.Parent = o
+		end)
+	end
+end
+
+local function stroke(o, c, w)
+	pcall(function()
+		local s = Instance.new("UIStroke")
+		s.Color = c or C("border")
+		s.Thickness = w or 1
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		s.Parent = o
+	end)
+end
+
+local function pad(o, px)
+	local p = Instance.new("UIPadding")
+	p.PaddingLeft = UDim.new(0, px)
+	p.PaddingRight = UDim.new(0, px)
+	p.PaddingTop = UDim.new(0, px)
+	p.PaddingBottom = UDim.new(0, px)
+	p.Parent = o
+	return p
+end
+
+local function label(par, n, txt, sz, clr)
+	local t = inst("TextLabel", par, n)
+	t.BackgroundTransparency = 1
+	t.Text = txt or ""
+	t.TextColor3 = clr or C("text")
+	t.Font = CFG.font
+	t.TextSize = sz or CFG.bodySize
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.TextWrapped = true
+	t.AutomaticSize = Enum.AutomaticSize.Y
+	return t
+end
+
+local function frame(par, n, bg)
+	local f = inst("Frame", par, n)
+	f.BackgroundColor3 = bg or C("panel")
+	f.BorderSizePixel = 0
+	corner(f, CFG.radius)
+	return f
+end
+
+local function scroll(par, n)
+	local s = inst("ScrollingFrame", par, n)
+	s.BackgroundColor3 = C("bg")
+	s.BorderSizePixel = 0
+	s.ScrollBarThickness = 6
+	s.ScrollBarImageColor3 = C("scrollbar")
+	s.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	s.CanvasSize = UDim2.new(0, 0, 0, 0)
+	s.ScrollingDirection = Enum.ScrollingDirection.Y
+	return s
+end
+
+local function txt(par, n, txt, sz, clr)
+	local t = inst("TextLabel", par, n)
+	t.BackgroundTransparency = 1
+	t.Text = txt or ""
+	t.TextColor3 = clr or C("text")
+	t.Font = CFG.font
+	t.TextSize = sz or CFG.bodySize
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.TextWrapped = true
+	t.AutomaticSize = Enum.AutomaticSize.Y
+	return t
+end
+
+local function box(par, n, placeholder)
+	local t = inst("TextBox", par, n)
+	t.BackgroundColor3 = C("inputBg")
+	t.BorderSizePixel = 0
+	t.TextColor3 = C("input")
+	t.PlaceholderColor3 = C("placeholder")
+	t.Font = CFG.font
+	t.TextSize = CFG.bodySize
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.TextYAlignment = Enum.TextYAlignment.Top
+	t.TextWrapped = true
+	t.MultiLine = true
+	t.ClearTextOnFocus = false
+	if placeholder then t.PlaceholderText = placeholder end
+	return t
+end
+
+local function abtn(par, n, txt, bg)
+	local b = inst("TextButton", par, n)
+	b.BackgroundColor3 = bg or C("accent")
+	b.BorderSizePixel = 0
+	b.TextColor3 = Color3.fromRGB(255, 255, 255)
+	b.Font = CFG.fontMedium
+	b.TextSize = 13
+	b.AutoButtonColor = true
+	corner(b, CFG.radiusSm)
+	return b
+end
+
+local function iconBtn(par, n, glyph, bg)
+	local b = abtn(par, n, glyph, bg or C("panel2"))
+	b.TextColor3 = C("text")
+	return b
+end
+
+local function toast(msg, kind)
+	pcall(function()
+		local t = inst("TextLabel", CoreGui, "AgileStudioToast")
+		t.Size = UDim2.new(0, 360, 0, 44)
+		t.Position = UDim2.new(0.5, -180, 0, 20)
+		t.BackgroundColor3 = C("panel")
+		t.BackgroundTransparency = 0.05
+		t.TextColor3 = C("text")
+		t.Font = CFG.fontMedium
+		t.TextSize = 13
+		t.Text = msg
+		t.BorderSizePixel = 0
+		corner(t, CFG.radiusLg)
+		t.Parent = CoreGui
+		task.delay(2.5, function()
+			pcall(function() t:Destroy() end)
+		end)
+	end)
+end
+-- ============================================================ Mascot (SVG-inspired geometric robot)
+local function buildMascot(parent, sz)
+	local m = inst("Frame", parent, "Mascot")
+	m.Size = sz or UDim2.new(0, 40, 0, 40)
+	m.BackgroundTransparency = 1
+	local head = inst("Frame", m, "Head")
+	head.Size = UDim2.new(0, 28, 0, 24)
+	head.Position = UDim2.new(0.5, -14, 0.15, 0)
+	head.BackgroundColor3 = C("indigo")
+	corner(head, 12)
+	local eyeL = inst("Frame", head, "EyeL")
+	eyeL.Size = UDim2.new(0, 5, 0, 5)
+	eyeL.Position = UDim2.new(0.25, 0, 0.35, 0)
+	eyeL.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	corner(eyeL, 3)
+	local eyeR = inst("Frame", head, "EyeR")
+	eyeR.Size = UDim2.new(0, 5, 0, 5)
+	eyeR.Position = UDim2.new(0.75, 0, 0.35, 0)
+	eyeR.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	corner(eyeR, 3)
+	local pupilL = inst("Frame", eyeL, "PupilL")
+	pupilL.Size = UDim2.new(0, 2, 0, 2)
+	pupilL.Position = UDim2.new(0.5, -1, 0.5, -1)
+	pupilL.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+	corner(pupilL, 1)
+	local pupilR = inst("Frame", eyeR, "PupilR")
+	pupilR.Size = UDim2.new(0, 2, 0, 2)
+	pupilR.Position = UDim2.new(0.5, -1, 0.5, -1)
+	pupilR.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+	corner(pupilR, 1)
+	local mouth = inst("Frame", head, "Mouth")
+	mouth.Size = UDim2.new(0, 8, 0, 2)
+	mouth.Position = UDim2.new(0.5, -4, 0.65, 0)
+	mouth.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
+	corner(mouth, 1)
+	local ant = inst("Frame", m, "Antenna")
+	ant.Size = UDim2.new(0, 2, 0, 8)
+	ant.Position = UDim2.new(0.5, -1, 0, -8)
+	ant.BackgroundColor3 = C("indigoLight")
+	corner(ant, 1)
+	local glow = inst("Frame", m, "Glow")
+	glow.Size = UDim2.new(1, 10, 1, 10)
+	glow.Position = UDim2.new(-0.1, 0, -0.1, 0)
+	glow.BackgroundColor3 = C("indigoLight")
+	glow.BackgroundTransparency = 0.5
+	corner(glow, 24)
+	return m
+end
+
+-- ============================================================ HTTP helper
+local function requestJSON(method, path, body)
+	local url = CFG.backend .. path
+	local opts = {
+		method = method,
+		headers = { ["Content-Type"] = "application/json" },
+		timeout = 30,
+	}
+	if body then
+		opts.body = HttpService:JSONEncode(body)
+	end
+	local ok, resp = pcall(function()
+		return HttpService:RequestAsync(opts)
+	end)
+	if not ok then return nil end
+	if resp.StatusCode < 200 or resp.StatusCode >= 300 then return nil end
+	local data = nil
+	pcall(function()
+		data = HttpService:JSONDecode(resp.Body)
+	end)
+	return data
+end
+
+-- ============================================================ Shell Builder
+function buildShell()
+	local UI = {}
+	local palName = CFG.theme == "light" and "light" or "dark"
+	local P = PALETTES[palName] or PALETTES.dark
+
+	local function inst(c, par, n)
+		local o = Instance.new(c)
+		if n then o.Name = n end
+		o.Parent = par
+		return o
+	end
+	local function corner(o, r)
+		if r and r > 0 then pcall(function() local u = Instance.new("UICorner"); u.CornerRadius = UDim.new(0, r); u.Parent = o end) end
+	end
+	local function stroke(o, c, w)
+		pcall(function() local s = Instance.new("UIStroke"); s.Color = c or C("border"); s.Thickness = w or 1; s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; s.Parent = o end) end
+	local function frame(par, n, bg)
+		local f = inst("Frame", par, n)
+		f.BackgroundColor3 = bg or C("panel")
+		f.BorderSizePixel = 0
+		corner(f, CFG.radius)
+		return f
+	end
+	local function scroll(par, n)
+		local s = inst("ScrollingFrame", par, n)
+		s.BackgroundColor3 = C("bg")
+		s.BorderSizePixel = 0
+		s.ScrollBarThickness = 6
+		s.ScrollBarImageColor3 = C("scrollbar")
+		s.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		s.CanvasSize = UDim2.new(0, 0, 0, 0)
+		s.ScrollingDirection = Enum.ScrollingDirection.Y
+		return s
+	end
+	local function txt(par, n, txt, sz, clr)
+		local t = inst("TextLabel", par, n)
+		t.BackgroundTransparency = 1
+		t.Text = txt or ""
+		t.TextColor3 = clr or C("text")
+		t.Font = CFG.font
+		t.TextSize = sz or CFG.bodySize
+		t.TextXAlignment = Enum.TextXAlignment.Left
+		t.TextWrapped = true
+		t.AutomaticSize = Enum.AutomaticSize.Y
+		return t
+	end
+	local function box(par, n, placeholder)
+		local t = inst("TextBox", par, n)
+		t.BackgroundColor3 = C("inputBg")
+		t.BorderSizePixel = 0
+		t.TextColor3 = C("input")
+		t.PlaceholderColor3 = C("placeholder")
+		t.Font = CFG.font
+		t.TextSize = CFG.bodySize
+		t.TextXAlignment = Enum.TextXAlignment.Left
+		t.TextYAlignment = Enum.TextYAlignment.Top
+		t.TextWrapped = true
+		t.MultiLine = true
+		t.ClearTextOnFocus = false
+		if placeholder then t.PlaceholderText = placeholder end
+		return t
+	end
+	local function abtn(par, n, txt, bg)
+		local b = inst("TextButton", par, n)
+		b.BackgroundColor3 = bg or C("accent")
+		b.BorderSizePixel = 0
+		b.TextColor3 = Color3.fromRGB(255, 255, 255)
+		b.Font = CFG.fontMedium
+		b.TextSize = 13
+		b.AutoButtonColor = true
+		corner(b, CFG.radiusSm)
+		return b
+	end
+	local function iconBtn(par, n, glyph, bg)
+		local b = abtn(par, n, glyph, bg or C("panel2"))
+		b.TextColor3 = C("text")
+		return b
+	end
+
+	-- HOST BG
+	local gui = inst("ScreenGui", CoreGui, "AgileStudioShell")
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	UI.gui = gui
+
+	-- ROOT
+	local root = frame(gui, "Root")
+	root.Size = UDim2.new(1, 0, 1, 0)
+	root.BackgroundColor3 = C("bg")
+
+	-- TOP BAR
+	local top = frame(root, "Top", C("panel"))
+	top.Size = UDim2.new(1, 0, 0, 42)
+	top.BorderSizePixel = 0
+	stroke(top, C("border"), CFG.border)
+	local mascot = buildMascot(top, UDim2.new(0, 36, 0, 36))
+	mascot.Position = UDim2.new(0, 10, 0.5, -18)
+	local title = txt(top, "Title", "AgileStudio", 16, C("accent"))
+	title.Position = UDim2.new(0, 52, 0, 0)
+	title.Size = UDim2.new(0, 200, 1, 0)
+	title.Font = CFG.fontBold
+	local dot = inst("Frame", top, "Status")
+	dot.Size = UDim2.new(0, 8, 0, 8)
+	dot.Position = UDim2.new(0, 10, 0.5, -4)
+	dot.BackgroundColor3 = C("statusGood")
+	corner(dot, 4)
+	-- Menu buttons (text-only, transparent)
+	local menu = inst("Frame", top, "Menu")
+	menu.Size = UDim2.new(0, 320, 1, 0)
+	menu.Position = UDim2.new(1, -328, 0, 0)
+	menu.BackgroundTransparency = 1
+	local ml = inst("UIListLayout", menu)
+	ml.Padding = UDim.new(0, 4)
+	ml.SortOrder = Enum.SortOrder.LayoutOrder
+	ml.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	local function mbtn(txt, cb)
+		local b = abtn(menu, txt, txt, C("panel2"))
+		b.Size = UDim2.new(0, 56, 0, 28)
+		b.TextColor3 = C("text")
+		b.Font = CFG.fontMedium
+		b.TextSize = 12
+		b.BackgroundTransparency = 1
+		b.BorderSizePixel = 0
+		b.MouseButton1Click:Connect(cb)
+		return b
+	end
+	mbtn("Chat", function() UI:dockToggle() end)
+	mbtn("History", function() UI:dockToggle() end)
+	mbtn("Settings", function() buildSettings() end)
+	mbtn("Usage", function() buildUsage() end)
+	mbtn("Sounds", function() buildSounds() end)
+	mbtn("Mods", function() buildMods() end)
+
+	-- SIDEBAR
+	local side = frame(root, "Side", C("panel2"))
+	side.Size = UDim2.new(0, 140, 1, -42)
+	side.Position = UDim2.new(0, 0, 0, 42)
+	side.BorderSizePixel = 0
+	local sl = inst("UIListLayout", side)
+	sl.Padding = UDim.new(0, 4)
+	sl.SortOrder = Enum.SortOrder.LayoutOrder
+	sl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	label(side, "SideHead", "Chats", 13, C("textDim")).Font = CFG.fontBold
+	local newBtn = abtn(side, "NewBtn", "+ New Chat", C("mint"))
+	newBtn.Size = UDim2.new(1, -16, 0, 30)
+	newBtn.LayoutOrder = 1
+	newBtn.MouseButton1Click:Connect(function()
+		local c = newConversation("New Chat")
+		State.activeId = c.id
+		saveConversations()
+		renderSidebar()
+		renderChat()
+	end)
+	local sideList = scroll(side, "SideList")
+	sideList.Size = UDim2.new(1, -8, 1, -76)
+	sideList.Position = UDim2.new(0, 4, 0, 72)
+	sideList.BackgroundTransparency = 1
+	sideList.BorderSizePixel = 0
+	sideList.ScrollBarThickness = 4
+	sideList.ScrollBarImageColor3 = C("indigo")
+	UI.sidebarList = sideList
+
+	-- MAIN CHAT AREA
+	local main = frame(root, "Main", C("bg"))
+	main.Size = UDim2.new(1, -140, 1, -42)
+	main.Position = UDim2.new(0, 140, 0, 42)
+	main.BorderSizePixel = 0
+	UI.chatScroll = scroll(main, "ChatScroll")
+	UI.chatScroll.Size = UDim2.new(1, -16, 1, -70)
+	UI.chatScroll.Position = UDim2.new(0, 8, 0, 8)
+	UI.chatScroll.BackgroundTransparency = 1
+	UI.chatScroll.BorderSizePixel = 0
+	UI.chatScroll.ScrollBarThickness = 6
+	UI.chatScroll.ScrollBarImageColor3 = C("indigo")
+	local chatLayout = inst("UIListLayout", UI.chatScroll)
+	chatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	chatLayout.Padding = UDim.new(0, 10)
+	UI.chatLayout = chatLayout
+
+	-- Composer
+	local comp = frame(main, "Composer", C("surface"))
+	comp.Size = UDim2.new(1, -16, 0, 56)
+	comp.Position = UDim2.new(0, 8, 1, -64)
+	UI.composer = comp
+	UI.input = box(comp, "Input")
+	UI.input.Size = UDim2.new(1, -150, 1, -12)
+	UI.input.Position = UDim2.new(0, 10, 0, 6)
+	UI.input.PlaceholderText = "Ask AgileStudio to build something…"
+	UI.input.PlaceholderColor3 = C("placeholder")
+	UI.input.FocusLost:Connect(function(enter)
+		if enter and UI.input.Text ~= "" then
+			local t = UI.input.Text
+			UI.input.Text = ""
+			sendMessage(t)
+		end
+	end)
+	UI.sendBtn = abtn(comp, "SendBtn", "", C("panel"))
+	UI.sendBtn.Size = UDim2.new(0, 36, 0, 36)
+	UI.sendBtn.Position = UDim2.new(1, -44, 0.5, -18)
+	UI.sendBtn.BorderSizePixel = 0
+	UI.sendBtn.Text = ""
+	local arrow = inst("ImageLabel", UI.sendBtn, "Arrow")
+	arrow.Size = UDim2.new(1, -6, 1, -6)
+	arrow.Position = UDim2.new(0.5, 0, 0.5, 0)
+	arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+	arrow.BackgroundTransparency = 1
+	arrow.Image = "rbxassetid://6031094670"
+	arrow.ImageColor3 = C("text")
+	arrow.ScaleType = Enum.ScaleType.Fit
+	UI.stopBtn = abtn(comp, "StopBtn", "Stop", C("danger"))
+	UI.stopBtn.Size = UDim2.new(0, 50, 0, 30)
+	UI.stopBtn.Position = UDim2.new(1, -94, 0.5, -15)
+	UI.stopBtn.Visible = false
+	UI.stopBtn.MouseButton1Click:Connect(stopGeneration)
+	UI.modelLabel = txt(comp, "ModelLabel", "", 11, C("textDim"))
+	UI.modelLabel.Position = UDim2.new(0, 10, 0, -2)
+	UI.modelLabel.Size = UDim2.new(0, 200, 0, 14)
+
+	-- DRAWER
+	local drawer = frame(root, "Drawer", C("panel"))
+	drawer.Size = UDim2.new(0, 300, 1, -42)
+	drawer.Position = UDim2.new(1, -300, 0, 42)
+	drawer.BorderSizePixel = 0
+	drawer.Visible = false
+	UI.drawer = drawer
+	local dtop = frame(drawer, "DTop", C("panel2"))
+	dtop.Size = UDim2.new(1, 0, 0, 40)
+	dtop.BorderSizePixel = 0
+	UI.drawerTitle = inst("Frame", dtop, "DTWrap")
+	UI.drawerTitle.Size = UDim2.new(1, -40, 1, 0)
+	UI.drawerTitle.BackgroundTransparency = 1
+	local dLayout = inst("UIListLayout", UI.drawerTitle)
+	dLayout.Padding = UDim.new(0, 8)
+	dLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	local closeB = iconBtn(dtop, "CloseBtn", "×", C("danger"))
+	closeB.Size = UDim2.new(0, 34, 0, 34)
+	closeB.Position = UDim2.new(1, -38, 0.5, -17)
+	closeB.Font = CFG.fontBold
+	closeB.TextSize = 18
+	closeB.MouseButton1Click:Connect(closeDrawer)
+	UI.drawerBody = scroll(drawer, "DBody")
+	UI.drawerBody.Size = UDim2.new(1, -12, 1, -48)
+	UI.drawerBody.Position = UDim2.new(0, 6, 0, 44)
+	UI.drawerBody.BackgroundTransparency = 1
+	UI.drawerBody.BorderSizePixel = 0
+	UI.drawerBody.ScrollBarThickness = 5
+	UI.drawerBody.ScrollBarImageColor3 = C("indigo")
+
+	function UI:dockToggle()
+		if not gui then return end
+		gui.Enabled = not gui.Enabled
+		UI.dockEnabled = gui.Enabled
+	end
+
+	State.gui = UI
+	return UI
+end
+-- ============================================================ Conversation Helpers
+function newConversation(name)
+	local c = {
+		id = "c" .. tostring(tick()):sub(-8),
+		name = name or "New Chat",
+		messages = {},
+		created = tick(),
+	}
 	table.insert(State.conversations, 1, c)
 	return c
 end
-local function getActive()
+
+function saveConversations()
+	local data = {}
+	for _, c in ipairs(State.conversations) do
+		table.insert(data, {
+			id = c.id,
+			name = c.name,
+			messages = c.messages,
+			created = c.created,
+		})
+	end
+	local s = HttpService:JSONEncode({
+		conversations = data,
+		activeId = State.activeId,
+	})
+	if PLUGIN then
+		pcall(function() PLUGIN:SetSetting(CONV_KEY, s) end)
+	else
+		pcall(function() writefile("AgileStudioConversations.json", s) end)
+	end
+end
+
+function loadConversations()
+	local s = nil
+	if PLUGIN then
+		local ok, v = pcall(function() return PLUGIN:GetSetting(CONV_KEY) end)
+		if ok and type(v) == "string" and v ~= "" then
+			pcall(function() s = HttpService:JSONDecode(v) end)
+		end
+	else
+		pcall(function()
+			local f = isfile and isfile("AgileStudioConversations.json")
+			if f then s = HttpService:JSONDecode(readfile("AgileStudioConversations.json")) end
+		end)
+	end
+	if s and s.conversations then
+		State.conversations = s.conversations
+		State.activeId = s.activeId
+	end
+end
+
+function getActive()
 	for _, c in ipairs(State.conversations) do
 		if c.id == State.activeId then return c end
 	end
 	return nil
 end
-local function persistConversations()
-	if not PLUGIN then return end
-	pcall(function()
-		local slim = {}
-		for _, c in ipairs(State.conversations) do
-			table.insert(slim, { id = c.id, name = c.name, backendId = c.backendId, created = c.created,
-				messages = c.messages })
-		end
-		PLUGIN:SetSetting(CONV_KEY, HttpService:JSONEncode(slim))
-	end)
-end
-local function loadConversations()
-	if not PLUGIN then return end
-	pcall(function()
-		local raw = PLUGIN:GetSetting(CONV_KEY)
-		if type(raw) == "string" and raw ~= "" then
-			local data = HttpService:JSONDecode(raw)
-			if type(data) == "table" then State.conversations = data end
-		end
-	end)
-end
 
--- ============================================================ Networking
-local function requestJSON(method, path, body, raw)
-	local url = State.backend .. path
-	-- Roblox HttpService can't set Authorization headers, so the plugin sends the
-	-- API token as a query param. The backend accepts it there (and via header for
-	-- non-Roblox clients).
-	if SET.token and SET.token ~= "" then
-		url = url .. (string.find(url, "?") and "&" or "?") .. "token=" .. HttpService:UrlEncode(SET.token)
-	end
-	local payload = nil
-	if body ~= nil then payload = HttpService:JSONEncode(body) end
-	local ok, res = pcall(function()
-		if method == "GET" then
-			return HttpService:GetAsync(url, false, {["Content-Type"] = "application/json"})
-		else
-			return HttpService:PostAsync(url, payload, Enum.HttpContentType.ApplicationJson, false)
-		end
-	end)
-	if not ok then
-		return nil, tostring(res)
-	end
-	if raw then return res, nil end
-	local data = nil
-	pcall(function() data = HttpService:JSONDecode(res) end)
-	return data, nil
-end
-
--- ============================================================ Tool execution (local)
-local function findScript(path, create)
-	local svc = game:GetService("ServerScriptService")
-	local parts = {}
-	for p in string.gmatch(path or "", "[^/]+") do table.insert(parts, p) end
-	local parent = svc
-	for i = 1, #parts - 1 do
-		local f = parent:FindFirstChild(parts[i])
-		if not f then f = inst("Folder", parent, parts[i]) end
-		parent = f
-	end
-	local fname = parts[#parts] or "Script"
-	local scr = parent:FindFirstChild(fname)
-	if not scr and create then
-		scr = inst(string.find(fname, "Module") and "ModuleScript" or "Script", parent, fname)
-	end
-	return scr
-end
-
-local function runTool(tr)
-	local name = tr.tool_name or tr.name
-	local args = tr.arguments or tr.args or {}
-	if name == "create_animation" then
-		local fname = args.name or "Animation"
-		local fps = args.fps or 30
-		local loop = args.loop ~= false
-		local kfs = args.keyframes or {}
-		local folder = game:GetService("ServerStorage"):FindFirstChild("AgileStudioAnimations")
-		if not folder then folder = inst("Folder", game:GetService("ServerStorage"), "AgileStudioAnimations") end
-		local ks = inst("KeyframeSequence", folder, fname)
-		ks.FrameRate = fps; ks.Loop = loop
-		for _, k in ipairs(kfs) do
-			local kf = inst("Keyframe", ks, "K" .. tostring(k.time))
-			kf.Time = k.time or 0
-		end
-		return "Created animation '" .. fname .. "' with " .. #kfs .. " keyframes at " .. fps .. "fps."
-	elseif name == "write_script" then
-		local scr = findScript(args.path, true)
-		if not scr then return "Failed to create " .. tostring(args.path) end
-		scr.Source = args.content or ""
-		return "Wrote " .. args.path
-	elseif name == "edit_script" then
-		local scr = findScript(args.path, true)
-		if not scr then return "Script not found: " .. tostring(args.path) end
-		local cur = scr.Source or ""
-		scr.Source = cur .. "\n-- AgileStudio edit:\n" .. (args.changes or "")
-		return "Edited " .. args.path
-	elseif name == "read_script" then
-		local scr = findScript(args.path, false)
-		if scr and (scr:IsA("Script") or scr:IsA("ModuleScript")) then return scr.Source end
-		return "Script not found: " .. tostring(args.path)
-	elseif name == "list_scripts" then
-		local out = {}
-		for _, v in ipairs(game:GetService("ServerScriptService"):GetDescendants()) do
-			if v:IsA("Script") or v:IsA("ModuleScript") then table.insert(out, v:GetFullName()) end
-		end
-		return "Scripts (" .. #out .. "):\n" .. table.concat(out, "\n")
-	elseif name == "execute_script" then
-		local fn; local ok, err = pcall(function() fn = loadstring(args.code or "") end)
-		if not ok or not fn then return "Compile error: " .. tostring(err) end
-		local ok2, res = pcall(fn)
-		if not ok2 then return "Runtime error: " .. tostring(res) end
-		return "Executed. Result: " .. tostring(res)
-	elseif name == "search_toolbox" then
-		return "Toolbox search '" .. tostring(args.keyword) .. "' (" .. tostring(args.category) .. ") — open the Toolbox window to insert."
-	elseif name == "get_documentation" then
-		return "Docs for '" .. tostring(args.topic) .. "': see https://create.roblox.com/docs"
-	else
-		return "Unknown tool: " .. tostring(name)
-	end
-end
-
--- ============================================================ Chat rendering
-local function codeBlock(parent, code)
-	local f = inst("Frame", parent, "Code")
-	f.AutomaticSize = Enum.AutomaticSize.Y
-	f.BackgroundColor3 = C("code")
-	f.BackgroundTransparency = 0.1
-	f.Size = UDim2.new(1, -8, 0, 0)
-	corner(f, 8); stroke(f, C("border"), 1)
-	local tb = inst("TextLabel", f, "CodeText")
-	tb.BackgroundTransparency = 1
-	tb.Font = Enum.Font.Code
-	tb.Text = code
-	tb.TextSize = 12
-	tb.TextColor3 = C("text")
-	tb.TextXAlignment = Enum.TextXAlignment.Left
-	tb.TextWrapped = true
-	tb.AutomaticSize = Enum.AutomaticSize.Y
-	tb.RichText = false
-	tb.Size = UDim2.new(1, -12, 0, 0)
-	pad(tb, 8)
-	local copy = iconButton(f, "Copy", "Copy", C("surface"))
-	copy.Size = UDim2.new(0, 56, 0, 22); copy.Position = UDim2.new(1, -62, 0, 6)
-	copy.TextSize = 11
-	copy.MouseButton1Click:Connect(function()
-		pcall(function() setclipboard(code) end)
-		copy.Text = "Copied"; task.wait(1); copy.Text = "Copy"
-	end)
-	return f
-end
-
-local function renderMessage(parent, msg)
-	local isUser = msg.role == "user"
-	local row = inst("Frame", parent, "Row")
-	row.AutomaticSize = Enum.AutomaticSize.Y
-	row.BackgroundTransparency = 1
-	row.Size = UDim2.new(1, -8, 0, 0)
-	local inner = inst("Frame", row, "Inner")
-	inner.AutomaticSize = Enum.AutomaticSize.Y
-	inner.BackgroundColor3 = isUser and C("userBubble") or C("assistBubble")
-	inner.BackgroundTransparency = isUser and 0.1 or 0.25
-	inner.Size = UDim2.new(isUser and 0.82 or 0.96, 0, 0, 0)
-	inner.Position = UDim2.new(isUser and 0.18 or 0, 0, 0, 0)
-	inner.AnchorPoint = Vector2.new(isUser and 0.18 or 0, 0)
-	corner(inner, 12); stroke(inner, C("border"), 1)
-	local pad_ = inst("UIPadding", inner); pad_.PaddingTop = UDim.new(0,8); pad_.PaddingBottom=UDim.new(0,8); pad_.PaddingLeft=UDim.new(0,10); pad_.PaddingRight=UDim.new(0,10)
-	listlayout(inner, 6, nil, Enum.FillDirection.Vertical)
-
-	-- header (role + time)
-	local head = inst("Frame", inner, "Head")
-	head.Size = UDim2.new(1, 0, 0, 18); head.BackgroundTransparency = 1
-	local who = label(head, "Who", isUser and "You" or "AgileStudio", 12, isUser and C("text") or C("mint"))
-	who.Font = Enum.Font.GothamBold; who.Size = UDim2.new(0, 120, 1, 0)
-	local ts = label(head, "Ts", os.date("%H:%M", msg.ts or os.time()), 11, C("textDim"))
-	ts.Size = UDim2.new(1, -130, 1, 0); ts.Position = UDim2.new(0, 120, 0, 0); ts.TextXAlignment = Enum.TextXAlignment.Right
-
-	-- reasoning row (collapsible)
-	if msg.reasoning and msg.reasoning ~= "" then
-		local rbtn = button(inner, "Reason", "💡 Reasoning", C("surface"))
-		rbtn.Size = UDim2.new(1, 0, 0, 26); rbtn.TextSize = 12; rbtn.TextColor3 = C("amber"); rbtn.Font = Enum.Font.GothamMedium
-		local rbox = inst("Frame", inner, "RBox")
-		rbox.AutomaticSize = Enum.AutomaticSize.Y; rbox.BackgroundTransparency = 1
-		rbox.Size = UDim2.new(1, 0, 0, 0); rbox.Visible = false
-		label(rbox, "RText", msg.reasoning, 12, C("textDim")).Font = Enum.Font.Gotham
-		rbtn.MouseButton1Click:Connect(function()
-			rbox.Visible = not rbox.Visible
-			rbtn.Text = rbox.Visible and "💡 Reasoning ▲" or "💡 Reasoning"
+-- ============================================================ Sidebar
+function renderSidebar()
+	if not State.sidebarList then return end
+	State.sidebarList:ClearAllChildren()
+	local layout = inst("UIListLayout", State.sidebarList)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 4)
+	for _, c in ipairs(State.conversations) do
+		local row = frame(State.sidebarList, "Row_" .. c.id, C("bubble"))
+		row.Size = UDim2.new(1, 0, 0, 44)
+		row.BackgroundTransparency = 1
+		local nm = txt(row, "Name", c.name, 13, C("text"))
+		nm.Size = UDim2.new(1, -8, 1, 0)
+		nm.Position = UDim2.new(0, 8, 0, 0)
+		local del = iconBtn(row, "Del_" .. c.id, "×", C("danger"))
+		del.Size = UDim2.new(0, 24, 0, 24)
+		del.Position = UDim2.new(1, -32, 0.5, -12)
+		del.BackgroundTransparency = 1
+		del.TextColor3 = C("textDim")
+		del.Font = CFG.fontBold
+		del.TextSize = 16
+		del.MouseButton1Click:Connect(function()
+			for i, cv in ipairs(State.conversations) do
+				if cv.id == c.id then
+					table.remove(State.conversations, i)
+					if State.activeId == c.id then
+						State.activeId = State.conversations[1] and State.conversations[1].id or nil
+					end
+					saveConversations()
+					renderSidebar()
+					renderChat()
+					break
+				end
+			end
+		end)
+		row.MouseButton1Click:Connect(function()
+			State.activeId = c.id
+			renderSidebar()
+			renderChat()
 		end)
 	end
-
-	-- text (split code blocks by ``` fences)
-	local text = msg.text or ""
-	local parts = {}
-	local i = 1
-	while true do
-		local s, e = string.find(text, "```", i)
-		if not s then table.insert(parts, {code = false, t = string.sub(text, i)}); break end
-		if s > i then table.insert(parts, {code = false, t = string.sub(text, i, s - 1)}) end
-		local s2, e2 = string.find(text, "```", e + 1)
-		if not s2 then table.insert(parts, {code = true, t = string.sub(text, e + 1)}); break end
-		table.insert(parts, {code = true, t = string.sub(text, e + 1, s2 - 1)})
-		i = e2 + 1
-	end
-	for _, p in ipairs(parts) do
-		if p.t and p.t ~= "" then
-			if p.code then codeBlock(inner, p.t) else label(inner, "Txt", p.t, 14, C("text")) end
-		end
-	end
-
-	-- tool result / permission card
-	if msg.tool then
-		buildToolCard(inner, msg.tool, msg)
-	end
 end
 
-function buildToolCard(parent, tool, msg)
-	local card = inst("Frame", parent, "ToolCard")
-	card.AutomaticSize = Enum.AutomaticSize.Y
-	card.BackgroundColor3 = C("surface")
-	card.BackgroundTransparency = 0.15
-	card.Size = UDim2.new(1, 0, 0, 0)
-	corner(card, 10); stroke(card, C("amber"), 1.5)
-	pad(card, 10)
-	listlayout(card, 6, nil, Enum.FillDirection.Vertical)
-	label(card, "TName", "🔧 " .. (tool.tool_name or tool.name or "tool"), 13, C("amber")).Font = Enum.Font.GothamBold
-	local argsStr = ""
-	pcall(function() argsStr = HttpService:JSONEncode(tool.arguments or tool.args or {}) end)
-	label(card, "TArgs", argsStr, 12, C("textDim")).Font = Enum.Font.Code
-	if msg.toolStatus == "pending" then
-		local row = inst("Frame", card, "Btns"); row.Size = UDim2.new(1,0,0,30); row.BackgroundTransparency=1; row.LayoutOrder=5
-		listlayout(row, 8, Enum.HorizontalAlignment.Left, Enum.FillDirection.Horizontal)
-		local allow = button(row, "Allow", "Allow", C("mint")); allow.Size = UDim2.new(0,80,0,28); allow.Font = Enum.Font.GothamMedium
-		local deny = button(row, "Deny", "Deny", C("danger")); deny.Size = UDim2.new(0,80,0,28); deny.Font = Enum.Font.GothamMedium
-		local always = button(row, "Always", "Always", C("indigoLight")); always.Size = UDim2.new(0,80,0,28); always.Font = Enum.Font.GothamMedium
-		allow.MouseButton1Click:Connect(function() resolveTool(msg, true, false) end)
-		deny.MouseButton1Click:Connect(function() resolveTool(msg, false, false) end)
-		always.MouseButton1Click:Connect(function() resolveTool(msg, true, true) end)
-	else
-		label(card, "TRes", "↳ " .. (msg.toolResult or ""), 12, C("mint"))
-	end
-end
-
-function resolveTool(msg, allowed, always)
-	if always then State.allowAlways[msg.tool.tool_name or msg.tool.name] = true end
-	msg.toolStatus = allowed and "allowed" or "denied"
-	msg.toolResult = allowed and runTool(msg.tool) or "User denied."
-	-- report back to backend
-	local reqId = msg.tool.render_id or (msg.tool.tool_request_id)
-	local op = State.activeOp
-	if op then
-		requestJSON("POST", "/operations/" .. op .. "/tool_results",
-			{ tool_request_id = tostring(reqId), allowed = allowed, result = msg.toolResult })
-	end
-	renderChat()
-end
-
+-- ============================================================ Chat Rendering
 function renderChat()
-	if not UI.chatScroll then return end
-	for _, c in ipairs(UI.chatScroll:GetChildren()) do
-		if c:IsA("Frame") and c.Name == "Row" then c:Destroy() end
-	end
-	local conv = getActive()
-	if not conv then
-		label(UI.chatScroll, "Empty", "Start a conversation on the left →", 16, C("textDim")).TextAlignment = Enum.TextXAlignment.Center
+	if not State.chatScroll then return end
+	State.chatScroll:ClearAllChildren()
+	local layout = inst("UIListLayout", State.chatScroll)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 10)
+	State.chatLayout = layout
+	local c = getActive()
+	if not c then
+		State.chatEmpty = txt(State.chatScroll, "Empty", "Start a new chat to begin.", 14, C("textDim"))
+		State.chatEmpty.Size = UDim2.new(1, 0, 0, 40)
+		State.chatEmpty.Position = UDim2.new(0, 0, 0, 20)
 		return
 	end
-	for _, m in ipairs(conv.messages) do
-		renderMessage(UI.chatScroll, m)
+	for _, msg in ipairs(c.messages) do
+		local isUser = msg.role == "user"
+		local bubble = frame(State.chatScroll, "Bubble_" .. tostring(msg.seq) or "bubble", isUser and C("userBubble") or C("assistBubble"))
+		bubble.Size = UDim2.new(0.85, 0, 0, 0)
+		bubble.Position = UDim2.new(isUser and 0.15 or 0.05, 0, 0, 0)
+		bubble.AutomaticSize = Enum.AutomaticSize.Y
+		bubble.BackgroundTransparency = 1
+		local body = frame(bubble, "Body", Color3.fromRGB(0, 0, 0, 0))
+		body.Size = UDim2.new(1, 0, 0, 0)
+		body.BackgroundTransparency = 1
+		body.AutomaticSize = Enum.AutomaticSize.Y
+		local txt2 = txt(body, "Text", msg.text or "", 14, isUser and C("userTxt") or C("assistTxt"))
+		txt2.Size = UDim2.new(1, -8, 0, 0)
+		txt2.Position = UDim2.new(0, 4, 0, 0)
 	end
 	task.defer(function()
-		if UI.chatScroll then UI.chatScroll.CanvasPosition = Vector2.new(0, UI.chatScroll.AbsoluteCanvasSize.Y) end
+		pcall(function() State.chatScroll.CanvasPosition = Vector2.new(0, State.chatScroll.AbsoluteCanvasSize.Y) end)
 	end)
 end
 
--- ============================================================ Sidebar (conversations)
-function renderSidebar()
-	if not UI.sidebarList then return end
-	for _, c in ipairs(UI.sidebarList:GetChildren()) do
-		if c:IsA("Frame") and c.Name == "ConvRow" then c:Destroy() end
-	end
-	for _, c in ipairs(State.conversations) do
-		local row = inst("Frame", UI.sidebarList, "ConvRow")
-		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.BackgroundColor3 = (c.id == State.activeId) and C("indigo") or C("panel2")
-		row.BackgroundTransparency = (c.id == State.activeId) and 0.15 or 0.4
+-- ============================================================ Thinking Placeholder
+function renderThinkingPlaceholder(scroll)
+	local ph = frame(scroll, "ThinkingPH", C("permBg"))
+	ph.Size = UDim2.new(0.85, 0, 0, 0)
+	ph.Position = UDim2.new(0.05, 0, 0, 0)
+	ph.AutomaticSize = Enum.AutomaticSize.Y
+	ph.BackgroundTransparency = 1
+	local phBody = frame(ph, "Body", Color3.fromRGB(0, 0, 0, 0))
+	phBody.Size = UDim2.new(1, 0, 0, 0)
+	phBody.BackgroundTransparency = 1
+	phBody.AutomaticSize = Enum.AutomaticSize.Y
+	local dot = inst("Frame", phBody, "Avatar")
+	dot.Size = UDim2.new(0, 10, 0, 10)
+	dot.Position = UDim2.new(0, 0, 0, 4)
+	dot.BackgroundColor3 = C("accent2")
+	corner(dot, 5)
+	local phTxt = txt(phBody, "Text", "Thinking…", 13, C("thinkingTxt"))
+	phTxt.Size = UDim2.new(1, -16, 0, 0)
+	phTxt.Position = UDim2.new(0, 14, 0, 0)
+	return ph
+end
+-- ============================================================ Tool Permission Card
+function renderToolPermission(scroll, req)
+	local card = frame(scroll, "ToolPerm_" .. (req.id or "unknown"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	local body = frame(card, "Body", Color3.fromRGB(0, 0, 0, 0))
+	body.Size = UDim2.new(1, 0, 0, 0)
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	local header = frame(body, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 30)
+	header.BorderSizePixel = 0
+	local icon = txt(header, "Icon", "⚙", 14, C("accent2"))
+	icon.Size = UDim2.new(0, 24, 0, 24)
+	local name = txt(header, "Name", req.name or "unknown", 13, C("text"))
+	name.Size = UDim2.new(1, -40, 0, 24)
+	name.Position = UDim2.new(0, 28, 0, 0)
+	local desc = txt(body, "Desc", "This tool can " .. (req.description or "modify your project"), 12, C("textDim"))
+	desc.Size = UDim2.new(1, -16, 0, 0)
+	desc.Position = UDim2.new(0, 8, 0, 4)
+	local actions = frame(body, "Actions", Color3.fromRGB(0, 0, 0, 0))
+	actions.Size = UDim2.new(1, 0, 0, 32)
+	actions.Position = UDim2.new(0, 0, 1, 0)
+	actions.BackgroundTransparency = 1
+	local yesBtn = abtn(actions, "Yes", "Yes", C("good"))
+	yesBtn.Size = UDim2.new(0, 70, 0, 26)
+	yesBtn.Position = UDim2.new(0, 0, 0, 2)
+	local noBtn = abtn(actions, "No", "No", C("panel2"))
+	noBtn.Size = UDim2.new(0, 70, 0, 26)
+	noBtn.Position = UDim2.new(0, 80, 0, 2)
+	noBtn.TextColor3 = C("text")
+	local alwaysBtn = abtn(actions, "Always", "Always", C("panel2"))
+	alwaysBtn.Size = UDim2.new(0, 80, 0, 26)
+	alwaysBtn.Position = UDim2.new(0, 160, 0, 2)
+	alwaysBtn.TextColor3 = C("text")
+	return card
+end
+
+-- ============================================================ Diff View
+function renderDiffView(scroll, diff)
+	local card = frame(scroll, "Diff_" .. (diff.block_id or "diff"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	label(header, "DiffLabel", "📝 " .. (diff.path or "unknown"), 12, C("text"))
+	local body = frame(card, "Body", Color3.fromRGB(0, 0, 0, 0))
+	body.Size = UDim2.new(1, 0, 0, 0)
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	local code = txt(body, "Code", diff.text or "", 12, C("code"))
+	code.Size = UDim2.new(1, -16, 0, 0)
+	code.Position = UDim2.new(0, 8, 0, 4)
+	code.Font = CFG.fontCode
+	code.TextSize = 12
+	code.BackgroundColor3 = C("code")
+	code.TextColor3 = C("text")
+	code.ClearTextOnFocus = false
+	code.MultiLine = true
+	return card
+end
+
+-- ============================================================ Plan View
+function renderPlanView(scroll, plan)
+	local card = frame(scroll, "Plan_" .. (plan.id or "plan"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	label(header, "PlanLabel", "📋 Plan", 12, C("accent2"))
+	local body = frame(card, "Body", Color3.fromRGB(0, 0, 0, 0))
+	body.Size = UDim2.new(1, 0, 0, 0)
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	local steps = plan.steps or {}
+	for i, step in ipairs(steps) do
+		local row = frame(body, "Step_" .. i, C("bubble"))
 		row.Size = UDim2.new(1, -8, 0, 0)
-		corner(row, 8)
-		local click = inst("TextButton", row, "Hit"); click.BackgroundTransparency = 1; click.Size = UDim2.new(1,0,1,0); click.Text = ""
-		local nm = label(row, "Name", c.name, 13, C("text")); nm.Font = Enum.Font.GothamMedium
-		nm.Size = UDim2.new(1, -56, 0, 22); nm.Position = UDim2.new(0, 8, 0, 4)
-		local del = iconButton(row, "Del", "×", C("danger")); del.Size = UDim2.new(0, 24, 0, 24)
-		del.Position = UDim2.new(1, -30, 0, 4); del.TextSize = 16; del.Font = Enum.Font.GothamBold
-		click.MouseButton1Click:Connect(function()
-			State.activeId = c.id; persistConversations(); renderSidebar(); renderChat()
-		end)
-		del.MouseButton1Click:Connect(function()
-			for i, cc in ipairs(State.conversations) do
-				if cc.id == c.id then table.remove(State.conversations, i); break end
-			end
-			if State.activeId == c.id then State.activeId = (State.conversations[1] and State.conversations[1].id) or nil end
-			persistConversations(); renderSidebar(); renderChat()
-		end)
+		row.Position = UDim2.new(0, 4, 0, 4)
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.BackgroundTransparency = 1
+		local num = txt(row, "Num", tostring(i) .. ".", 12, C("accent2"))
+		num.Size = UDim2.new(0, 20, 0, 20)
+		local txt2 = txt(row, "StepText", step.description or step, 12, C("text"))
+		txt2.Size = UDim2.new(1, -24, 0, 0)
 	end
+	return card
 end
 
--- ============================================================ Streaming
-function startPolling(operationId, conv)
-	State.activeOp = operationId
-	State.pollToken = { cancelled = false }
-	local token = State.pollToken
-	local after = 0
-	setThinking(true)
-	task.spawn(function()
-		local lastMsg = nil
-		while not token.cancelled do
-			local data = requestJSON("GET", "/operations/" .. operationId .. "/events?after_seq=" .. after .. "&limit=50")
-			if data and data.events then
-				for _, ev in ipairs(data.events) do
-					after = math.max(after, ev.seq or 0)
-					local p = ev.payload or {}
-					if ev.type == "block_upsert" then
-						local b = p.block
-						if b then
-							if b.role == "assistant" then
-								lastMsg = ensureAssistant(conv)
-								lastMsg.text = b.text or ""
-								lastMsg.streaming = b.streaming
-							elseif b.role == "permission" then
-								local tm = b.tool_request or {}
-								local existing = findToolMsg(conv, tm.tool_request_id or tm.id)
-								if not existing then
-									local m = { role = "assistant", ts = os.time(), text = "", tool = { tool_name = tm.tool_name, name = tm.name, arguments = tm.arguments or tm.args, render_id = tm.tool_request_id or tm.id }, toolStatus = "pending" }
-									table.insert(conv.messages, m)
-									-- auto-allow
-									if State.allowAlways[tm.tool_name or tm.name] then
-										resolveTool(m, true, false)
-									end
-								end
-							end
-							renderChat()
-						end
-					elseif ev.type == "block_patch" then
-						local bid = p.block_id or p.render_id
-						local pp = p.patch or {}
-						if lastMsg and (bid == lastMsg.render_id or pp.text_append or pp.text) then
-							if pp.text_append then lastMsg.text = (lastMsg.text or "") .. pp.text_append end
-							if pp.text ~= nil then lastMsg.text = pp.text end
-							if pp.streaming ~= nil then lastMsg.streaming = pp.streaming end
-							renderChat()
-						end
-					elseif ev.type == "tool_result" then
-						-- backend acknowledges; nothing extra
-					end
-				end
-				if data.status == "completed" or data.status == "failed" then break end
-			end
-			task.wait(0.7)
-		end
-		setThinking(false)
-		-- reconcile from timeline (single canonical set, no dup)
-		local tl = requestJSON("GET", "/conversations/" .. (conv.backendId or "") .. "/timeline")
-		if tl and tl.timeline and conv.backendId then
-			-- keep only user/assistant/text; rebuild from server truth
-			conv.messages = {}
-			for _, b in ipairs(tl.timeline) do
-				table.insert(conv.messages, { role = b.role, ts = os.time(), text = b.text or "" })
-			end
-		end
-		persistConversations()
-		State.isSending = false
-		UI.composer.Visible = true
-		UI.stopBtn.Visible = false
-		renderChat(); renderSidebar()
-	end)
+-- ============================================================ Executed Code View
+function renderExecutedCode(scroll, exec)
+	local card = frame(scroll, "Exec_" .. (exec.id or "exec"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	label(header, "ExecLabel", "▶ Executed: " .. (exec.path or "snippet"), 12, C("good"))
+	local body = frame(card, "Body", Color3.fromRGB(0, 0, 0, 0))
+	body.Size = UDim2.new(1, 0, 0, 0)
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	local code = txt(body, "Code", exec.code or "", 12, C("text"))
+	code.Size = UDim2.new(1, -16, 0, 0)
+	code.Position = UDim2.new(0, 8, 0, 4)
+	code.Font = CFG.fontCode
+	code.TextSize = 12
+	code.BackgroundColor3 = C("code")
+	code.TextColor3 = C("text")
+	code.ClearTextOnFocus = false
+	code.MultiLine = true
+	return card
 end
-
-function ensureAssistant(conv)
-	for i = #conv.messages, 1, -1 do
-		if conv.messages[i].role == "assistant" and conv.messages[i].streaming then return conv.messages[i] end
-	end
-	local m = { role = "assistant", ts = os.time(), text = "", streaming = true, render_id = "ast:" .. HttpService:GenerateGUID(false) }
-	table.insert(conv.messages, m)
-	return m
-end
-function findToolMsg(conv, rid)
-	if not rid then return nil end
-	for _, m in ipairs(conv.messages) do
-		if m.tool and (m.tool.render_id == rid or (m.tool.tool_request_id == rid)) then return m end
-	end
-	return nil
-end
-
-function setThinking(on)
-	State.thinking = on
-	if UI.mascotTop then
-		local t = TweenService:Create(UI.mascotTop, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Rotation = on and 12 or 0})
-		if on then t:Play() else t:Cancel(); UI.mascotTop.Rotation = 0 end
-	end
-	if UI.topStatus then
-		UI.topStatus.BackgroundColor3 = on and C("amber") or C("mint")
-		UI.topStatus.Tooltip = on and "AgileStudio is thinking…" or "AgileStudio ready"
-	end
-end
-
--- ============================================================ Send
+-- ============================================================ sendMessage + pollOperation + stopGeneration
 function sendMessage(text)
-	if State.isSending or (text or "") == "" then return end
-	local conv = getActive()
-	if not conv then conv = newConversation(string.sub(text, 1, 40)); State.activeId = conv.id end
-	table.insert(conv.messages, { role = "user", ts = os.time(), text = text })
-	State.isSending = true
-	UI.composer.Visible = false
-	renderChat()
-
-	local path, body
-	if conv.backendId then
-		path = "/conversations/" .. conv.backendId .. "/messages"
-		body = { message = text, model = SET.model ~= "" and SET.model or "freellmapi/auto" }
-	else
-		path = "/conversations"
-		body = { message = text, model = SET.model ~= "" and SET.model or "freellmapi/auto" }
+	local c = getActive()
+	if not c then
+		c = newConversation("New Chat")
+		State.activeId = c.id
 	end
-	local data, err = requestJSON("POST", path, body)
-	if not data then
-		toast("Backend error: " .. (err or "unknown"), "error")
-		State.isSending = false; UI.composer.Visible = true
+	local seq = #c.messages + 1
+	table.insert(c.messages, {role = "user", text = text, seq = seq})
+	saveConversations()
+	renderChat()
+	local ph = renderThinkingPlaceholder(State.chatScroll)
+	if State.stopBtn then State.stopBtn.Visible = true end
+	local model = CFG.model ~= "" and CFG.model or "freellmapi/auto"
+	local body = {message = text, model = model}
+	local ok, resp = pcall(function() return requestJSON("POST", "/conversations", body) end)
+	if not ok or not resp then
+		if ph then ph:Destroy() end
+		local eb = frame(State.chatScroll, "Bubble_err", C("permBg"))
+		eb.Size = UDim2.new(0.85, 0, 0, 0)
+		eb.Position = UDim2.new(0.05, 0, 0, 0)
+		eb.AutomaticSize = Enum.AutomaticSize.Y
+		eb.BackgroundTransparency = 1
+		local et = txt(eb, "EText", "Error: could not reach backend", 13, C("danger"))
+		et.Size = UDim2.new(1, -16, 0, 0)
+		et.Position = UDim2.new(0, 8, 0, 4)
+		if State.stopBtn then State.stopBtn.Visible = false end
 		return
 	end
-	if data.conversation and data.conversation.id then conv.backendId = data.conversation.id end
-	if data.conversation and data.conversation.name and conv.name == "New Chat" then conv.name = data.conversation.name end
-	persistConversations(); renderSidebar()
-	if data.status == "running" then
-		UI.stopBtn.Visible = true
-		startPolling(data.operation_id, conv)
-	else
-		State.isSending = false; UI.composer.Visible = true
+	if resp.tool_request then
+		if ph then ph:Destroy() end
+		renderToolPermission(State.chatScroll, resp.tool_request)
+		local tr = resp.tool_request
+		local execBody = {tool_request_id = tr.id, allow = true}
+		local execOk, execResp = pcall(function()
+			return requestJSON("POST", "/conversations/" .. (resp.conversation_id or "n/a") .. "/tool-response", execBody)
+		end)
+		if execOk and execResp and execResp.operation_id then
+			pollOperation(execResp.operation_id, c, seq + 1)
+		end
+		return
 	end
+	local opId = resp.operation_id
+	if not opId then
+		if ph then ph:Destroy() end
+		local errTxt = resp.error or "unknown error"
+		local eb = frame(State.chatScroll, "Bubble_err", C("permBg"))
+		eb.Size = UDim2.new(0.85, 0, 0, 0)
+		eb.Position = UDim2.new(0.05, 0, 0, 0)
+		eb.AutomaticSize = Enum.AutomaticSize.Y
+		eb.BackgroundTransparency = 1
+		local et = txt(eb, "EText", "Error: " .. errTxt, 13, C("danger"))
+		et.Size = UDim2.new(1, -16, 0, 0)
+		et.Position = UDim2.new(0, 8, 0, 4)
+		if State.stopBtn then State.stopBtn.Visible = false end
+		return
+	end
+	pollOperation(opId, c, seq + 1, ph)
+end
+
+function pollOperation(opId, conv, assistSeq, ph)
+	State.stopping = false
+	local fullText = ""
+	local afterSeq = 0
+	while true do
+		task.wait(0.4)
+		if State.stopping then break end
+		local evOk, evData = pcall(function()
+			return requestJSON("GET", "/operations/" .. opId .. "/events?after_seq=" .. afterSeq)
+		end)
+		if not evOk or not evData then break end
+		for _, ev in ipairs(evData.events or {}) do
+			afterSeq = ev.seq or afterSeq
+			if ev.type == "block_upsert" and ev.payload and ev.payload.block then
+				local b = ev.payload.block
+				if b.text then
+					fullText = b.text
+					if ph then
+						local phTxt = ph:FindFirstChild("Body") and ph.Body:FindFirstChild("Text")
+						if phTxt then phTxt.Text = fullText end
+					end
+				end
+				if b.streaming == false then
+					if ph then ph:Destroy() end
+					table.insert(conv.messages, {role = "assistant", text = fullText, seq = assistSeq})
+					saveConversations()
+					renderChat()
+					if State.stopBtn then State.stopBtn.Visible = false end
+					return
+				end
+			end
+			if ev.type == "block_patch" and ev.payload and ev.payload.patch then
+				local p = ev.payload.patch
+				if p.text_append then
+					fullText = (fullText or "") .. p.text_append
+					if ph then
+						local phTxt = ph:FindFirstChild("Body") and ph.Body:FindFirstChild("Text")
+						if phTxt then phTxt.Text = fullText end
+					end
+				end
+				if p.text then
+					fullText = p.text
+					if ph then
+						local phTxt = ph:FindFirstChild("Body") and ph.Body:FindFirstChild("Text")
+						if phTxt then phTxt.Text = fullText end
+					end
+				end
+				if p.streaming == false then
+					if ph then ph:Destroy() end
+					table.insert(conv.messages, {role = "assistant", text = fullText, seq = assistSeq})
+					saveConversations()
+					renderChat()
+					if State.stopBtn then State.stopBtn.Visible = false end
+					return
+				end
+			end
+		end
+		if evData.status == "completed" then
+			if ph then ph:Destroy() end
+			table.insert(conv.messages, {role = "assistant", text = fullText, seq = assistSeq})
+			saveConversations()
+			renderChat()
+			if State.stopBtn then State.stopBtn.Visible = false end
+			return
+		end
+	end
+	if ph then ph:Destroy() end
+	if State.stopBtn then State.stopBtn.Visible = false end
 end
 
 function stopGeneration()
-	if State.pollToken then State.pollToken.cancelled = true end
-	State.isSending = false
-	UI.composer.Visible = true; UI.stopBtn.Visible = false
-	setThinking(false)
-	toast("Stopped generation", "ok")
+	State.stopping = true
+	if State.stopBtn then State.stopBtn.Visible = false end
 end
-
--- ============================================================ Drawer panels
-function openDrawer(title)
-	if not UI.drawer then return end
-	label(UI.drawerTitle, "T", title, 16, C("text")).Font = Enum.Font.GothamBold
-	UI.drawer.Visible = true
-end
-function closeDrawer()
-	if UI.drawer then UI.drawer.Visible = false end
-end
-
-function buildSettings()
-	local b = UI.drawerBody; clearDrawer()
-	openDrawer("Settings")
-	-- Backend URL
-	label(b, "L1", "Backend URL", 13, C("textDim")).Font = Enum.Font.GothamMedium
-	local tb = inst("TextBox", b, "Backend"); tb.Size = UDim2.new(1,0,0,32); tb.BackgroundColor3 = C("surface")
-	tb.TextColor3 = C("text"); tb.Font = Enum.Font.Gotham; tb.TextSize = 13; tb.Text = SET.backend
-	tb.ClearTextOnFocus = false; tb.PlaceholderText = "https://…"; corner(tb, 8); stroke(tb, C("border"),1)
-	-- API Token
-	label(b, "L1b", "API Token (from agilestudio dashboard)", 13, C("textDim")).Font = Enum.Font.GothamMedium
-	local tk = inst("TextBox", b, "TokenBox"); tk.Size = UDim2.new(1,0,0,32); tk.BackgroundColor3 = C("surface")
-	tk.TextColor3 = C("text"); tk.Font = Enum.Font.Code; tk.TextSize = 13; tk.Text = SET.token or ""
-	tk.ClearTextOnFocus = false; tk.PlaceholderText = "agst_…"; corner(tk, 8); stroke(tk, C("border"),1)
-	local save = button(b, "Save", "Save", C("mint")); save.Size = UDim2.new(0, 120, 0, 30); save.LayoutOrder = 2
-	save.MouseButton1Click:Connect(function()
-		SET.backend = tb.Text; State.backend = tb.Text
-		SET.token = tk.Text; saveSettings(); loadModels(false)
-		toast("Settings saved", "ok")
-	end)
-	divider(b)
-	-- Theme
-	label(b, "L2", "Theme", 13, C("textDim")).Font = Enum.Font.GothamMedium
-	local themeRow = inst("Frame", b, "TR"); themeRow.Size = UDim2.new(1,0,0,32); themeRow.BackgroundTransparency=1
-	listlayout(themeRow, 10, Enum.HorizontalAlignment.Left, Enum.FillDirection.Horizontal)
-	local dark = button(themeRow, "Dark", "Dark", THEME == "dark" and C("indigo") or C("surface"))
-	dark.Size = UDim2.new(0, 100, 1, 0)
-	local light = button(themeRow, "Light", THEME == "light" and C("indigo") or C("surface"))
-	light.Size = UDim2.new(0, 100, 1, 0)
-	dark.MouseButton1Click:Connect(function() applyTheme("dark") end)
-	light.MouseButton1Click:Connect(function() applyTheme("light") end)
-	divider(b)
-	-- Default model
-	label(b, "L3", "Default model", 13, C("textDim")).Font = Enum.Font.GothamMedium
-	local ml = label(b, "ModelCur", "Current: " .. (SET.model ~= "" and SET.model or "auto (first)"), 13, C("text"))
-	local pick = button(b, "Pick", "Refresh models", C("indigo")); pick.Size = UDim2.new(0,160,0,30); pick.LayoutOrder=2
-	pick.MouseButton1Click:Connect(function() loadModels(true); toast("Models refreshed", "ok") end)
-	divider(b)
-	label(b, "Info", "AgileStudio — your Roblox coding buddy.\nChats are saved locally on this machine.", 12, C("textDim"))
-end
-
-function divider(parent)
-	local d = inst("Frame", parent, "Div"); d.Size = UDim2.new(1,0,0,1); d.BackgroundColor3 = C("border"); d.BackgroundTransparency = 0.5; d.LayoutOrder = 3
-end
-function clearDrawer()
-	for _, c in ipairs(UI.drawerBody:GetChildren()) do
-		if c:IsA("GuiObject") and c.Name ~= "UIListLayout" and c.Name ~= "UIPadding" then c:Destroy() end
-	end
-end
-
-function buildUsage()
-	local b = UI.drawerBody; clearDrawer(); openDrawer("Usage")
-	label(b, "U1", "Plan: Free (AgileStudio)", 14, C("mint")).Font = Enum.Font.GothamBold
-	label(b, "U2", "Models available: " .. tostring(#State.models), 13, C("text"))
-	label(b, "U3", "Tool set: 8 (create_animation, write_script, edit_script, read_script, list_scripts, execute_script, search_toolbox, get_documentation)", 12, C("textDim")).TextWrapped = true
-	local bar = inst("Frame", b, "Bar"); bar.Size = UDim2.new(1,0,0,10); bar.BackgroundColor3 = C("surface"); corner(bar, 5)
-	local fill = inst("Frame", bar, "Fill"); fill.Size = UDim2.new(0.15,0,1,0); fill.BackgroundColor3 = C("mint"); corner(fill, 5)
-	label(b, "U4", "Local session — quotas are managed by your backend key.", 12, C("textDim"))
-end
-
-function buildSounds()
-	local b = UI.drawerBody; clearDrawer(); openDrawer("Sounds")
-	label(b, "S1", "Sound effects", 14, C("text")).Font = Enum.Font.GothamBold
-	local row = inst("Frame", b, "SR"); row.Size = UDim2.new(1,0,0,32); row.BackgroundTransparency=1
-	listlayout(row, 10, Enum.HorizontalAlignment.Left, Enum.FillDirection.Horizontal)
-	local on = button(row, "On", "Enabled", C("mint")); on.Size = UDim2.new(0, 110, 1, 0)
-	local off = button(row, "Off", "Muted", C("surface")); off.Size = UDim2.new(0, 110, 1, 0)
-	on.MouseButton1Click:Connect(function() SET.sounds = true; saveSettings(); toast("Sounds on", "ok") end)
-	off.MouseButton1Click:Connect(function() SET.sounds = false; saveSettings(); toast("Sounds muted", "ok") end)
-	label(b, "S2", "Plays a soft chime when AgileStudio finishes a reply.", 12, C("textDim"))
-end
-
-function buildMods()
-	local b = UI.drawerBody; clearDrawer(); openDrawer("Mods")
-	label(b, "M1", "Mods", 14, C("text")).Font = Enum.Font.GothamBold
-	local mods = { "Auto-format scripts", "Safe save before AI edits", "Verbose tool logs", "Confirm destructive tools" }
-	for _, m in ipairs(mods) do
-		local row = inst("Frame", b, "Mod"); row.AutomaticSize = Enum.AutomaticSize.Y; row.BackgroundColor3 = C("panel2"); row.BackgroundTransparency = 0.3
-		row.Size = UDim2.new(1,0,0,0); corner(row, 8); pad(row, 8)
-		label(row, "Name", m, 13, C("text"))
-		local tog = button(row, "T", "ON", C("mint")); tog.Size = UDim2.new(0, 56, 0, 26); tog.Position = UDim2.new(1, -62, 0.5, -13)
-		local state = true
-		tog.MouseButton1Click:Connect(function()
-			state = not state; tog.Text = state and "ON" or "OFF"; tog.BackgroundColor3 = state and C("mint") or C("surface")
-		end)
-	end
-end
-
-function applyTheme(name)
-	THEME = name; SET.theme = name; saveSettings()
-	-- rebuild UI colors by re-rendering everything
-	if UI.root then
-		UI.root.BackgroundColor3 = C("bg")
-		-- recolor main panels
-	end
-	renderChat(); renderSidebar(); buildTopRecolor()
-	toast("Theme: " .. name, "ok")
-end
-function buildTopRecolor()
-	-- light recolor of static panels without full rebuild
-	if UI.dock then UI.dock.BackgroundColor3 = C("bg"); stroke(UI.dock, C("indigo"), 2) end
-end
-
+-- ============================================================ Model Loading + Settings + Usage + Sounds + Mods + Drawer
 function loadModels(force)
 	if not force and State.modelsLoaded then return end
 	local data = requestJSON("GET", "/models/gateway")
 	if data and data.models then
 		State.models = data.models
 		State.modelsLoaded = true
-		if SET.model == "" and #State.models > 0 then
-			SET.model = State.models[1].id
+		if CFG.model == "" and #State.models > 0 then
+			CFG.model = State.models[1].id
 			saveSettings()
 		end
-		if UI.modelLabel then
-			UI.modelLabel.Text = "Model: " .. (SET.model ~= "" and SET.model or "auto")
+		if State.modelLabel then
+			State.modelLabel.Text = "Model: " .. (CFG.model ~= "" and CFG.model or "auto")
 		end
 	end
 end
 
--- ============================================================ Shell
-function buildShell()
-	local gui
-	local dockParent
-	if PLUGIN then
-		local info = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 380, 560, 300, 400)
-		local ok, dw = pcall(function() return PLUGIN:CreateDockWidgetPluginGui("AgileStudio", info) end)
-		if ok and dw then gui = dw; dockParent = dw; gui.Title = "AgileStudio" end
-	end
-	if not gui then
-		gui = inst("ScreenGui", CoreGui, "AgileStudioGui"); gui.ResetOnSpawn = false; dockParent = gui
-	end
-	UI.gui = gui
-
-	local dock = inst("Frame", dockParent, "Dock")
-	dock.Size = UDim2.new(1, 0, 1, 0)
-	dock.BackgroundColor3 = C("bg")
-	dock.ClipsDescendants = true
-	UI.dock = dock
-
-	-- Top bar
-	local top = inst("Frame", dock, "Top"); top.Size = UDim2.new(1, 0, 0, 54); top.BackgroundColor3 = C("panel"); top.BorderSizePixel = 0
-	local tc = corner(top, 0); tc.CornerRadius = UDim.new(0, 0)
-	UI.mascotTop = buildMascot(top, UDim2.new(0, 40, 0, 40)); UI.mascotTop.Position = UDim2.new(0, 12, 0.5, 0)
-	local title = label(top, "Title", "AgileStudio", 20, C("text")); title.Position = UDim2.new(0, 60, 0, 0); title.Size = UDim2.new(0, 200, 1, 0); title.Font = Enum.Font.GothamBold
-	-- status dot
-	local dot = inst("Frame", top, "Status"); dot.Size = UDim2.new(0, 10, 0, 10); dot.Position = UDim2.new(0, 56, 0.5, 14); dot.BackgroundColor3 = C("mint"); corner(dot, 5)
-	UI.topStatus = dot
-	-- menu buttons (text-only, transparent — standing rule)
-	local menu = inst("Frame", top, "Menu"); menu.Size = UDim2.new(0, 300, 1, 0); menu.Position = UDim2.new(1, -308, 0, 0); menu.BackgroundTransparency = 1
-	listlayout(menu, 4, Enum.HorizontalAlignment.Right, Enum.FillDirection.Horizontal)
-	local function mbtn(txt, cb)
-		local b = iconButton(menu, txt, txt, Color3.new(1,1,1)); b.BackgroundTransparency = 1; b.TextColor3 = C("text")
-		b.Font = Enum.Font.GothamMedium; b.TextSize = 13; b.Size = UDim2.new(0, 48, 0, 30)
-		b.MouseButton1Click:Connect(cb); return b
-	end
-	mbtn("Chat", function() closeDrawer() end)
-	mbtn("History", function() closeDrawer() end)
-	mbtn("Settings", function() buildSettings() end)
-	mbtn("Usage", function() buildUsage() end)
-	mbtn("Sounds", function() buildSounds() end)
-	mbtn("Mods", function() buildMods() end)
-
-	-- Sidebar
-	local side = inst("Frame", dock, "Side"); side.Size = UDim2.new(0, 140, 1, -54); side.Position = UDim2.new(0, 0, 0, 54); side.BackgroundColor3 = C("panel2"); side.BorderSizePixel = 0
-	local sl = inst("UIListLayout", side); sl.Padding = UDim.new(0, 6); sl.SortOrder = Enum.SortOrder.LayoutOrder; sl.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	label(side, "ST", "Chats", 13, C("textDim")).Font = Enum.Font.GothamBold
-	local newBtn = button(side, "New", "+ New Chat", C("mint")); newBtn.Size = UDim2.new(1, -16, 0, 32); newBtn.LayoutOrder = 1
-	newBtn.MouseButton1Click:Connect(function()
-		local c = newConversation("New Chat"); State.activeId = c.id; persistConversations(); renderSidebar(); renderChat()
+function buildSettings()
+	openDrawer("Settings")
+	State.panelBody:ClearAllChildren()
+	local row1 = frame(State.panelBody, "Row1", Color3.fromRGB(0, 0, 0, 0))
+	row1.Size = UDim2.new(1, 0, 0, 36)
+	row1.BackgroundTransparency = 1
+	label(row1, "L1", "Backend URL", 13, C("textDim"))
+	local urlBox = box(row1, "UrlBox")
+	urlBox.Size = UDim2.new(1, -80, 0, 28)
+	urlBox.Position = UDim2.new(0, 4, 0, 4)
+	urlBox.Text = CFG.backend
+	urlBox.FocusLost:Connect(function()
+		CFG.backend = urlBox.Text:gsub("%s+$", "")
+		saveSettings()
+		toast("Backend saved", "ok")
 	end)
-	local listWrap = inst("ScrollingFrame", side, "ListWrap"); listWrap.Size = UDim2.new(1, -8, 1, -80); listWrap.Position = UDim2.new(0, 4, 0, 76); listWrap.BackgroundTransparency = 1; listWrap.BorderSizePixel = 0; listWrap.ScrollBarThickness = 4; listWrap.ScrollBarImageColor3 = C("indigo")
-	listlayout(listWrap, 6, Enum.HorizontalAlignment.Center, Enum.FillDirection.Vertical)
-	UI.sidebarList = listWrap
+	local row2 = frame(State.panelBody, "Row2", Color3.fromRGB(0, 0, 0, 0))
+	row2.Size = UDim2.new(1, 0, 0, 36)
+	row2.BackgroundTransparency = 1
+	label(row2, "L2", "Theme", 13, C("textDim"))
+	local themeSel = inst("TextButton", row2, "ThemeSel")
+	themeSel.Size = UDim2.new(0, 120, 0, 28)
+	themeSel.Position = UDim2.new(1, -128, 0, 4)
+	themeSel.BackgroundColor3 = C("panel2")
+	themeSel.BorderSizePixel = 0
+	themeSel.TextColor3 = C("text")
+	themeSel.Font = CFG.fontMedium
+	themeSel.TextSize = 12
+	themeSel.Text = CFG.theme
+	corner(themeSel, 6)
+	themeSel.MouseButton1Click:Connect(function()
+		CFG.theme = CFG.theme == "dark" and "light" or "dark"
+		themeSel.Text = CFG.theme
+		saveSettings()
+		toast("Theme: " .. CFG.theme, "ok")
+	end)
+	local row2b = frame(State.panelBody, "Row2b", Color3.fromRGB(0, 0, 0, 0))
+	row2b.Size = UDim2.new(1, 0, 0, 36)
+	row2b.BackgroundTransparency = 1
+	label(row2b, "L2b", "Appearance", 13, C("textDim"))
+	local appSel = inst("TextButton", row2b, "AppSel")
+	appSel.Size = UDim2.new(0, 140, 0, 28)
+	appSel.Position = UDim2.new(1, -148, 0, 4)
+	appSel.BackgroundColor3 = C("panel2")
+	appSel.BorderSizePixel = 0
+	appSel.TextColor3 = C("text")
+	appSel.Font = CFG.fontMedium
+	appSel.TextSize = 12
+	appSel.Text = CFG.appearance
+	corner(appSel, 6)
+	appSel.MouseButton1Click:Connect(function()
+		CFG.appearance = CFG.appearance == "claude" and "claude-code" or "claude"
+		appSel.Text = CFG.appearance
+		saveSettings()
+		toast("Appearance: " .. CFG.appearance, "ok")
+	end)
+	local row3 = frame(State.panelBody, "Row3", Color3.fromRGB(0, 0, 0, 0))
+	row3.Size = UDim2.new(1, 0, 0, 36)
+	row3.BackgroundTransparency = 1
+	label(row3, "L3", "Default model", 13, C("textDim"))
+	local ml = label(row3, "ModelCur", "Current: " .. (CFG.model ~= "" and CFG.model or "auto"), 13, C("text"))
+	State.modelLabel = ml
+	ml.Position = UDim2.new(0, 4, 0, 4)
+	ml.Size = UDim2.new(1, -130, 0, 28)
+	local pick = abtn(row3, "Pick", "Refresh", C("indigo"))
+	pick.Size = UDim2.new(0, 70, 0, 28)
+	pick.Position = UDim2.new(1, -76, 0, 4)
+	pick.MouseButton1Click:Connect(function()
+		loadModels(true)
+		toast("Models refreshed", "ok")
+	end)
+	local row4 = frame(State.panelBody, "Row4", Color3.fromRGB(0, 0, 0, 0))
+	row4.Size = UDim2.new(1, 0, 0, 36)
+	row4.BackgroundTransparency = 1
+	label(row4, "L4", "API Token", 13, C("textDim"))
+	local tk = box(row4, "TokenBox")
+	tk.Size = UDim2.new(1, -80, 0, 28)
+	tk.Position = UDim2.new(0, 4, 0, 4)
+	tk.Text = CFG.token
+	tk.PlaceholderText = "Paste agst_ token here"
+	tk.FocusLost:Connect(function()
+		CFG.token = tk.Text:gsub("%s+$", "")
+		saveSettings()
+		toast("Token saved", "ok")
+	end)
+	local row5 = frame(State.panelBody, "Row5", Color3.fromRGB(0, 0, 0, 0))
+	row5.Size = UDim2.new(1, 0, 0, 36)
+	row5.BackgroundTransparency = 1
+	local resetBtn = abtn(row5, "Reset", "Reset to defaults", C("danger"))
+	resetBtn.Size = UDim2.new(0, 160, 0, 28)
+	resetBtn.Position = UDim2.new(0, 4, 0, 4)
+	resetBtn.MouseButton1Click:Connect(function()
+		CFG.backend = "https://agilestudio.onrender.com"
+		CFG.theme = "dark"
+		CFG.appearance = "claude"
+		CFG.model = ""
+		CFG.token = ""
+		saveSettings()
+		toast("Settings reset", "ok")
+		buildSettings()
+	end)
+end
 
-	-- Main chat
-	local main = inst("Frame", dock, "Main"); main.Size = UDim2.new(1, -140, 1, -54); main.Position = UDim2.new(0, 140, 0, 54); main.BackgroundColor3 = C("bg"); main.BorderSizePixel = 0
-	UI.chatScroll = inst("ScrollingFrame", main, "Chat"); UI.chatScroll.Size = UDim2.new(1, -16, 1, -70); UI.chatScroll.Position = UDim2.new(0, 8, 0, 8); UI.chatScroll.BackgroundTransparency = 1; UI.chatScroll.BorderSizePixel = 0; UI.chatScroll.ScrollBarThickness = 6; UI.chatScroll.ScrollBarImageColor3 = C("indigo")
-	listlayout(UI.chatScroll, 12, Enum.HorizontalAlignment.Center, Enum.FillDirection.Vertical)
+function buildUsage()
+	openDrawer("Usage")
+	State.panelBody:ClearAllChildren()
+	local data = requestJSON("GET", "/usage")
+	local r = data or {requests = 0, cost = 0}
+	label(State.panelBody, "U1", "Requests (24h): " .. tostring(r.requests or 0), 14, C("text"))
+	label(State.panelBody, "U2", "Cost (24h): $" .. string.format("%.4f", r.cost or 0), 14, C("text"))
+	label(State.panelBody, "U3", "Token: " .. (CFG.token ~= "" and CFG.token:sub(1, 12) .. "…" or "none"), 12, C("textDim"))
+end
 
-	-- Composer
-	local comp = inst("Frame", main, "Composer"); comp.Size = UDim2.new(1, -16, 0, 56); comp.Position = UDim2.new(0, 8, 1, -64); comp.BackgroundColor3 = C("surface"); corner(comp, 12); stroke(comp, C("border"), 1)
-	UI.composer = comp
-	UI.input = inst("TextBox", comp, "Input"); UI.input.Size = UDim2.new(1, -150, 1, -12); UI.input.Position = UDim2.new(0, 10, 0, 6); UI.input.BackgroundTransparency = 1; UI.input.TextColor3 = C("text"); UI.input.Font = Enum.Font.Gotham; UI.input.TextSize = 14; UI.input.TextWrapped = true; UI.input.ClearTextOnFocus = false; UI.input.MultiLine = true
-	UI.input.PlaceholderText = "Ask AgileStudio to build something…"; UI.input.PlaceholderColor3 = C("textDim")
-	UI.input.FocusLost:Connect(function(enter) if enter and UI.input.Text ~= "" then local t = UI.input.Text; UI.input.Text = ""; sendMessage(t) end end)
+function buildSounds()
+	openDrawer("Sounds")
+	State.panelBody:ClearAllChildren()
+	label(State.panelBody, "S1", "Sound settings (coming soon)", 14, C("text"))
+end
 
-	UI.sendBtn = button(comp, "Send", "Send", C("indigo")); UI.sendBtn.Size = UDim2.new(0, 64, 0, 38); UI.sendBtn.Position = UDim2.new(1, -74, 0.5, -19); UI.sendBtn.MouseButton1Click:Connect(function() local t = UI.input.Text; if t ~= "" then UI.input.Text = ""; sendMessage(t) end end)
-	UI.stopBtn = button(comp, "Stop", "Stop", C("danger")); UI.stopBtn.Size = UDim2.new(0, 64, 0, 38); UI.stopBtn.Position = UDim2.new(1, -74, 0.5, -19); UI.stopBtn.Visible = false; UI.stopBtn.MouseButton1Click:Connect(stopGeneration)
+function buildMods()
+	openDrawer("Mods")
+	State.panelBody:ClearAllChildren()
+	label(State.panelBody, "M1", "Mods (coming soon)", 14, C("text"))
+end
 
-	-- model label
-	UI.modelLabel = label(comp, "Model", "", 11, C("textDim")); UI.modelLabel.Position = UDim2.new(0, 10, 0, -2); UI.modelLabel.Size = UDim2.new(0, 200, 0, 14)
+function openDrawer(title)
+	if not State.drawer then return end
+	State.drawer.Visible = true
+	State.drawerTitle:ClearAllChildren()
+	label(State.drawerTitle, "DT", title, 14, C("text")).Font = CFG.fontBold
+	State.panelBody = scroll(State.drawer, "PanelBody")
+	State.panelBody.Size = UDim2.new(1, -12, 1, -48)
+	State.panelBody.Position = UDim2.new(0, 6, 0, 44)
+	State.panelBody.BackgroundTransparency = 1
+	State.panelBody.BorderSizePixel = 0
+	State.panelBody.ScrollBarThickness = 5
+	State.panelBody.ScrollBarImageColor3 = C("indigo")
+end
 
-	-- Drawer
-	local drawer = inst("Frame", dock, "Drawer"); drawer.Size = UDim2.new(0, 300, 1, -54); drawer.Position = UDim2.new(1, -300, 0, 54); drawer.BackgroundColor3 = C("panel"); drawer.BorderSizePixel = 0; drawer.Visible = false
-	UI.drawer = drawer
-	local dtop = inst("Frame", drawer, "DTop"); dtop.Size = UDim2.new(1, 0, 0, 40); dtop.BackgroundColor3 = C("panel2"); dtop.BorderSizePixel = 0
-	UI.drawerTitle = inst("Frame", dtop, "DTWrap"); UI.drawerTitle.Size = UDim2.new(1, -40, 1, 0); UI.drawerTitle.BackgroundTransparency = 1
-	listlayout(UI.drawerTitle, 8, nil, Enum.FillDirection.Vertical)
-	local closeB = iconButton(dtop, "X", "×", C("danger")); closeB.Size = UDim2.new(0, 34, 0, 34); closeB.Position = UDim2.new(1, -38, 0.5, -17); closeB.Font = Enum.Font.GothamBold; closeB.TextSize = 18
-	closeB.MouseButton1Click:Connect(closeDrawer)
-	UI.drawerBody = inst("ScrollingFrame", drawer, "DBody"); UI.drawerBody.Size = UDim2.new(1, -12, 1, -48); UI.drawerBody.Position = UDim2.new(0, 6, 0, 44); UI.drawerBody.BackgroundTransparency = 1; UI.drawerBody.BorderSizePixel = 0; UI.drawerBody.ScrollBarThickness = 5; UI.drawerBody.ScrollBarImageColor3 = C("indigo")
-	listlayout(UI.drawerBody, 10, nil, Enum.FillDirection.Vertical)
+function closeDrawer()
+	if State.drawer then State.drawer.Visible = false end
 end
 
 -- ============================================================ Boot
 local function main()
+	if PLUGIN then
+		pcall(function()
+			local tb = PLUGIN:CreateToolbar("AgileStudio")
+			local btn = tb:CreateButton("Open", "Open AgileStudio", "")
+			btn.Click:Connect(function()
+				if State.gui and State.gui.gui then
+					pcall(function() State.gui.gui.Enabled = not State.gui.gui.Enabled end)
+				end
+			end)
+		end)
+	end
 	loadSettings()
 	loadConversations()
 	if #State.conversations == 0 then newConversation("New Chat") end
@@ -925,10 +1315,1295 @@ local function main()
 	task.spawn(function()
 		while true do
 			task.wait(2)
-			if UI.modelLabel then UI.modelLabel.Text = "Model: " .. (SET.model ~= "" and SET.model or "auto") end
+			if State.modelLabel then
+				State.modelLabel.Text = "Model: " .. (CFG.model ~= "" and CFG.model or "auto")
+			end
 		end
 	end)
 	toast("AgileStudio ready — pick a model in Settings", "ok")
 end
 
 main()
+
+-- ============================================================ Appearance System (Normal Claude / Claude Code)
+local APPEARANCE_KEY = "AgileBotAppearance"
+
+local function appearanceFont(a)
+	if a == "claude-code" then return CFG.fontCode end
+	return CFG.font
+end
+
+local function appearanceAccent(a)
+	return Color3.fromRGB(204, 120, 92) -- Anthropic terracotta
+end
+
+local function isCodeAppearance()
+	return (CFG.appearance or "claude") == "claude-code"
+end
+
+-- Layered on top of theme. Does NOT alter chat logic, endpoints, Settings/Usage/Sounds/Mods behavior.
+local function applyAppearanceToShell(shell)
+	if not shell then return end
+	local a = CFG.appearance or "claude"
+	local code = isCodeAppearance()
+	-- Apply font to all text elements in shell
+	pcall(function()
+		for _, obj in ipairs(shell:GetDescendants()) do
+			if obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton") then
+				obj.Font = appearanceFont(a)
+			end
+		end
+	end)
+end
+
+-- ============================================================ Message Row Rendering (with avatars, like AgileBot)
+function renderMessageRow(scroll, msg, idx)
+	local isUser = msg.role == "user"
+	local bubble = frame(scroll, "Bubble_" .. tostring(msg.seq) or "bubble_" .. idx, isUser and C("userBubble") or C("assistBubble"))
+	bubble.Size = UDim2.new(0.85, 0, 0, 0)
+	bubble.Position = UDim2.new(isUser and 0.15 or 0.05, 0, 0, 0)
+	bubble.AutomaticSize = Enum.AutomaticSize.Y
+	bubble.BackgroundTransparency = 1
+
+	-- Avatar dot
+	local avatar = inst("Frame", bubble, "Avatar")
+	avatar.Size = UDim2.new(0, 10, 0, 10)
+	avatar.Position = UDim2.new(isUser and 0.02 or 0.02, 0, 0, 4)
+	avatar.BackgroundColor3 = isUser and C("avatarUser") or C("avatarAssist")
+	corner(avatar, 5)
+
+	-- Body
+	local body = frame(bubble, "Body", Color3.fromRGB(0, 0, 0, 0))
+	body.Size = UDim2.new(1, -16, 0, 0)
+	body.Position = UDim2.new(0, 14, 0, 0)
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+
+	-- Text
+	local txt2 = txt(body, "Text", msg.text or "", CFG.bodySize, isUser and C("userTxt") or C("assistTxt"))
+	txt2.Size = UDim2.new(1, -8, 0, 0)
+	txt2.Font = isCodeAppearance() and CFG.fontCode or CFG.font
+
+	-- Timestamp
+	local ts = txt(body, "Timestamp", "", 10, C("textDim"))
+	ts.Size = UDim2.new(1, -8, 0, 12)
+	ts.Position = UDim2.new(0, 0, 1, 0)
+	return bubble
+end
+
+-- ============================================================ History Sidebar (conversation list with avatars)
+function renderHistorySidebar()
+	if not State.sidebarList then return end
+	State.sidebarList:ClearAllChildren()
+	local layout = inst("UIListLayout", State.sidebarList)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 4)
+
+	-- Header
+	local head = frame(State.sidebarList, "Head", C("panel2"))
+	head.Size = UDim2.new(1, 0, 0, 30)
+	head.BackgroundTransparency = 1
+	label(head, "H", "Conversations", 12, C("textDim")).Font = CFG.fontBold
+
+	for _, c in ipairs(State.conversations) do
+		local row = frame(State.sidebarList, "Row_" .. c.id, C("bubble"))
+		row.Size = UDim2.new(1, 0, 0, 44)
+		row.BackgroundTransparency = 1
+
+		-- Avatar
+		local av = inst("Frame", row, "Avatar")
+		av.Size = UDim2.new(0, 28, 0, 28)
+		av.Position = UDim2.new(0, 8, 0.5, -14)
+		av.BackgroundColor3 = C("indigo")
+		corner(av, 14)
+		local avTxt = txt(av, "AT", "C", 12, Color3.fromRGB(255, 255, 255))
+		avTxt.Size = UDim2.new(1, 0, 1, 0)
+		avTxt.TextXAlignment = Enum.TextXAlignment.Center
+		avTxt.TextYAlignment = Enum.TextYAlignment.Center
+
+		-- Name
+		local nm = txt(row, "Name", c.name, 13, C("text"))
+		nm.Size = UDim2.new(1, -40, 1, 0)
+		nm.Position = UDim2.new(0, 42, 0, 0)
+
+		-- Time ago
+		local timeAgo = txt(row, "Time", "recent", 10, C("textDim"))
+		timeAgo.Size = UDim2.new(0, 60, 0, 14)
+		timeAgo.Position = UDim2.new(1, -68, 0.5, -7)
+
+		-- Delete button
+		local del = iconBtn(row, "Del_" .. c.id, "×", C("danger"))
+		del.Size = UDim2.new(0, 22, 0, 22)
+		del.Position = UDim2.new(1, -30, 0.5, -11)
+		del.BackgroundTransparency = 1
+		del.TextColor3 = C("textDim")
+		del.Font = CFG.fontBold
+		del.TextSize = 14
+		del.MouseButton1Click:Connect(function()
+			for i, cv in ipairs(State.conversations) do
+				if cv.id == c.id then
+					table.remove(State.conversations, i)
+					if State.activeId == c.id then
+						State.activeId = State.conversations[1] and State.conversations[1].id or nil
+					end
+					saveConversations()
+					renderSidebar()
+					renderChat()
+					break
+				end
+			end
+		end)
+
+		-- Click to activate
+		row.MouseButton1Click:Connect(function()
+			State.activeId = c.id
+			renderSidebar()
+			renderChat()
+		end)
+	end
+end
+
+-- ============================================================ Model Switcher Dropdown
+function setupModelSwitcher(button)
+	if not button then return end
+	-- Create dropdown frame
+	local dropdown = frame(button.Parent, "ModelDropdown", C("panel"))
+	dropdown.Size = UDim2.new(0, 200, 0, 0)
+	dropdown.Position = UDim2.new(0, 0, 1, 4)
+	dropdown.BorderSizePixel = 0
+	dropdown.Visible = false
+	dropdown.ZIndex = 50
+
+	local list = scroll(dropdown, "ModelList")
+	list.Size = UDim2.new(1, 0, 0, 0)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 4
+
+	-- Populate models
+	for _, m in ipairs(State.models) do
+		local row = inst("TextButton", list, "Model_" .. (m.id or "unknown"))
+		row.Size = UDim2.new(1, 0, 0, 28)
+		row.BackgroundTransparency = 1
+		row.TextColor3 = C("text")
+		row.Font = CFG.font
+		row.TextSize = 12
+		row.Text = m.id or "unknown"
+		row.TextXAlignment = Enum.TextXAlignment.Left
+		row.MouseButton1Click:Connect(function()
+			CFG.model = m.id or ""
+			saveSettings()
+			if State.modelLabel then
+				State.modelLabel.Text = "Model: " .. (CFG.model ~= "" and CFG.model or "auto")
+			end
+			dropdown.Visible = false
+			toast("Model: " .. (m.id or "auto"), "ok")
+		end)
+		row.MouseEnter:Connect(function() row.BackgroundColor3 = C("panel2") end)
+		row.MouseLeave:Connect(function() row.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+	end
+
+	button.MouseButton1Click:Connect(function()
+		dropdown.Visible = not dropdown.Visible
+		if dropdown.Visible then
+			-- Resize dropdown to fit content
+			local count = #State.models
+			dropdown.Size = UDim2.new(0, 200, 0, math.min(count * 28 + 8, 300))
+		end
+	end)
+
+	-- Close dropdown when clicking elsewhere
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if dropdown.Visible then
+			-- Check if click was outside dropdown
+			local target = input.Target
+			if target and not dropdown:IsAncestorOf(target) then
+				dropdown.Visible = false
+			end
+		end
+	end)
+end
+
+-- ============================================================ Streaming Typing Indicator
+function renderTypingIndicator(scroll)
+	local ph = frame(scroll, "TypingPH", C("permBg"))
+	ph.Size = UDim2.new(0.85, 0, 0, 0)
+	ph.Position = UDim2.new(0.05, 0, 0, 0)
+	ph.AutomaticSize = Enum.AutomaticSize.Y
+	ph.BackgroundTransparency = 1
+	local phBody = frame(ph, "Body", Color3.fromRGB(0, 0, 0, 0))
+	phBody.Size = UDim2.new(1, 0, 0, 0)
+	phBody.BackgroundTransparency = 1
+	phBody.AutomaticSize = Enum.AutomaticSize.Y
+	-- Three dots animation
+	local dotContainer = inst("Frame", phBody, "Dots")
+	dotContainer.Size = UDim2.new(0, 40, 0, 10)
+	dotContainer.Position = UDim2.new(0, 14, 0, 4)
+	dotContainer.BackgroundTransparency = 1
+	for i = 1, 3 do
+		local dot = inst("Frame", dotContainer, "Dot" .. i)
+		dot.Size = UDim2.new(0, 4, 0, 4)
+		dot.Position = UDim2.new(0, (i-1) * 14, 0, 3)
+		dot.BackgroundColor3 = C("accent2")
+		corner(dot, 2)
+		-- Animate opacity
+		task.spawn(function()
+			while dot.Parent do
+				dot.BackgroundTransparency = 0.3 + 0.5 * math.sin(tick() * 3 + i)
+				task.wait(0.1)
+			end
+		end)
+	end
+	local phTxt = txt(phBody, "Text", "AgileStudio is thinking…", 12, C("thinkingTxt"))
+	phTxt.Size = UDim2.new(1, -50, 0, 0)
+	phTxt.Position = UDim2.new(0, 50, 0, 2)
+	return ph
+end
+
+-- ============================================================ Inline Diff Editor (accept/decline wired to API)
+function renderInlineDiff(scroll, diff)
+	local card = frame(scroll, "InlineDiff_" .. (diff.block_id or "diff"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	-- Header with path and status
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	local pathLabel = label(header, "DiffPath", "📝 " .. (diff.path or "unknown"), 12, C("text"))
+	pathLabel.Size = UDim2.new(1, -120, 0, 24)
+	-- Status badge
+	local status = txt(header, "DiffStatus", diff.status or "pending", 11, C("textDim"))
+	status.Size = UDim2.new(0, 100, 0, 20)
+	status.Position = UDim2.new(1, -108, 0.5, -10)
+	-- Code editor area
+	local editor = frame(card, "Editor", C("code"))
+	editor.Size = UDim2.new(1, -16, 0, 0)
+	editor.Position = UDim2.new(0, 8, 0, 4)
+	editor.AutomaticSize = Enum.AutomaticSize.Y
+	editor.BackgroundTransparency = 1
+	local codeBox = box(editor, "CodeBox")
+	codeBox.Size = UDim2.new(1, -16, 0, 0)
+	codeBox.Position = UDim2.new(0, 8, 0, 4)
+	codeBox.Text = diff.text or ""
+	codeBox.Font = CFG.fontCode
+	codeBox.TextSize = 12
+	codeBox.BackgroundColor3 = C("code")
+	codeBox.TextColor3 = C("text")
+	codeBox.ClearTextOnFocus = false
+	codeBox.MultiLine = true
+	-- Add line count
+	local lineCount = txt(editor, "LineCount", "lines", 10, C("textDim"))
+	lineCount.Size = UDim2.new(1, -8, 0, 16)
+	-- Action buttons
+	local actions = frame(card, "DiffActions", Color3.fromRGB(0, 0, 0, 0))
+	actions.Size = UDim2.new(1, 0, 0, 32)
+	actions.Position = UDim2.new(0, 0, 1, 0)
+	actions.BackgroundTransparency = 1
+	local acceptBtn = abtn(actions, "Accept", "Accept", C("good"))
+	acceptBtn.Size = UDim2.new(0, 70, 0, 26)
+	acceptBtn.Position = UDim2.new(0, 0, 0, 2)
+	acceptBtn.MouseButton1Click:Connect(function()
+		-- Send accept to backend
+		pcall(function()
+			requestJSON("POST", "/conversations/" .. (diff.conv_id or "n/a") .. "/diff-accept", {block_id = diff.block_id, text = codeBox.Text})
+			toast("Diff accepted", "ok")
+			card:Destroy()
+		end)
+	end)
+	local declineBtn = abtn(actions, "Decline", "Decline", C("bad"))
+	declineBtn.Size = UDim2.new(0, 70, 0, 26)
+	declineBtn.Position = UDim2.new(0, 80, 0, 2)
+	declineBtn.MouseButton1Click:Connect(function()
+		pcall(function()
+			requestJSON("POST", "/conversations/" .. (diff.conv_id or "n/a") .. "/diff-decline", {block_id = diff.block_id})
+			toast("Diff declined", "ok")
+			card:Destroy()
+		end)
+	end)
+	return card
+end
+
+-- ============================================================ Plan Step with Checkbox
+function renderPlanStep(scroll, step, idx)
+	local row = frame(scroll, "PlanStep_" .. idx, C("planStepBg"))
+	row.Size = UDim2.new(1, -8, 0, 0)
+	row.Position = UDim2.new(0, 4, 0, 4)
+	row.AutomaticSize = Enum.AutomaticSize.Y
+	row.BackgroundTransparency = 1
+	-- Checkbox
+	local checkbox = inst("TextButton", row, "Check_" .. idx)
+	checkbox.Size = UDim2.new(0, 20, 0, 20)
+	checkbox.Position = UDim2.new(0, 4, 0, 2)
+	checkbox.BackgroundColor3 = C("panel2")
+	checkbox.BorderSizePixel = 0
+	checkbox.Text = "☐"
+	checkbox.TextColor3 = C("text")
+	checkbox.Font = CFG.font
+	checkbox.TextSize = 14
+	corner(checkbox, 4)
+	-- Step text
+	local stepText = txt(row, "StepText", step.description or step, 12, C("text"))
+	stepText.Size = UDim2.new(1, -30, 0, 0)
+	stepText.Position = UDim2.new(0, 28, 0, 2)
+	-- Toggle checkbox
+	local checked = false
+	checkbox.MouseButton1Click:Connect(function()
+		checked = not checked
+		checkbox.Text = checked and "☑" or "☐"
+		checkbox.BackgroundColor3 = checked and C("good") or C("panel2")
+		-- Strikethrough on text
+		stepText.TextColor3 = checked and C("textDim") or C("text")
+	end)
+	return row
+end
+
+-- ============================================================ Plan View with Checkboxes
+function renderPlanView(scroll, plan)
+	local card = frame(scroll, "Plan_" .. (plan.id or "plan"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	-- Header
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	label(header, "PlanLabel", "📋 Plan", 12, C("accent2"))
+	-- Expand/collapse toggle
+	local toggle = iconBtn(header, "PlanToggle", "▼", C("panel2"))
+	toggle.Size = UDim2.new(0, 24, 0, 24)
+	toggle.Position = UDim2.new(1, -30, 0.5, -12)
+	toggle.BackgroundTransparency = 1
+	toggle.TextColor3 = C("text")
+	-- Body (collapsible)
+	local body = frame(card, "Body", Color3.fromRGB(0, 0, 0, 0))
+	body.Size = UDim2.new(1, 0, 0, 0)
+	body.BackgroundTransparency = 1
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	local steps = plan.steps or {}
+	for i, step in ipairs(steps) do
+		renderPlanStep(body, step, i)
+	end
+	-- Expand/collapse logic
+	local expanded = true
+	toggle.MouseButton1Click:Connect(function()
+		expanded = not expanded
+		toggle.Text = expanded and "▼" or "▶"
+		body.Visible = expanded
+	end)
+	return card
+end
+
+-- ============================================================ Keyboard Shortcuts
+local function setupKeyboardShortcuts()
+	if not State.gui or not State.gui.gui then return end
+	State.gui.gui.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		-- Ctrl+Enter to send
+		if input.KeyCode == Enum.KeyCode.Return and input:IsModified() then
+			if UI.input and UI.input.Text ~= "" then
+				sendMessage(UI.input.Text)
+				UI.input.Text = ""
+			end
+		end
+		-- Ctrl+K to clear chat
+		if input.KeyCode == Enum.KeyCode.K and input:IsModified() then
+			if State.activeId then
+				for i, c in ipairs(State.conversations) do
+					if c.id == State.activeId then
+						c.messages = {}
+						saveConversations()
+						renderChat()
+						break
+					end
+				end
+			end
+		end
+		-- Ctrl+N for new chat
+		if input.KeyCode == Enum.KeyCode.N and input:IsModified() then
+			newConversation("New Chat")
+			renderSidebar()
+			renderChat()
+		end
+		-- Escape to close drawer
+		if input.KeyCode == Enum.KeyCode.Escape then
+			closeDrawer()
+		end
+		-- Ctrl+Shift+F for focus input
+		if input.KeyCode == Enum.KeyCode.F and input:IsModified() and input.Shift then
+			if UI.input then UI.input:CaptureFocus() end
+		end
+	end)
+end
+
+-- ============================================================ Message Search
+function setupSearch()
+	if not State.searchFrame then return end
+	State.searchFrame.Visible = false
+	local searchInput = box(State.searchFrame, "SearchInput")
+	searchInput.Size = UDim2.new(1, -30, 0, 28)
+	searchInput.Position = UDim2.new(0, 4, 0, 4)
+	searchInput.PlaceholderText = "Search messages..."
+	searchInput.PlaceholderColor3 = C("placeholder")
+	searchInput.Font = CFG.font
+	searchInput.TextSize = 12
+	searchInput.BackgroundColor3 = C("code")
+	searchInput.TextColor3 = C("text")
+	local resultsLabel = label(State.searchFrame, "Results", "", 11, C("textDim"))
+	resultsLabel.Size = UDim2.new(1, 0, 0, 16)
+	resultsLabel.Position = UDim2.new(0, 4, 0, 36)
+	-- Live search as user types
+	searchInput:GetPropertyChangedSignal("Text"):Connect(function()
+		local query = searchInput.Text:lower()
+		if query == "" then
+			resultsLabel.Text = ""
+			return
+		end
+		local count = 0
+		for _, c in ipairs(State.conversations) do
+			for _, m in ipairs(c.messages) do
+				if m.text and m.text:lower():find(query, 1, true) then
+					count = count + 1
+				end
+			end
+		end
+		resultsLabel.Text = count .. " result(s)"
+	end)
+	-- Close button
+	local closeBtn = iconBtn(State.searchFrame, "SearchClose", "×", C("danger"))
+	closeBtn.Size = UDim2.new(0, 24, 0, 24)
+	closeBtn.Position = UDim2.new(1, -28, 0, 4)
+	closeBtn.BackgroundTransparency = 1
+	closeBtn.TextColor3 = C("textDim")
+	closeBtn.Font = CFG.fontBold
+	closeBtn.TextSize = 14
+	closeBtn.MouseButton1Click:Connect(function()
+		State.searchFrame.Visible = false
+	end)
+end
+
+-- ============================================================ Export Conversation
+function exportConversation(conv)
+	if not conv then conv = getActive() end
+	if not conv then return end
+	local lines = {}
+	for _, m in ipairs(conv.messages) do
+		local role = m.role == "user" and "User" or "Assistant"
+		table.insert(lines, "[" .. role .. "]")
+		table.insert(lines, m.text or "")
+		table.insert(lines, "")
+	end
+	return table.concat(lines, "\n")
+end
+
+function copyExportToClipboard(conv)
+	local text = exportConversation(conv)
+	if setclipboard then
+		setclipboard(text)
+		toast("Copied to clipboard", "ok")
+	else
+		oast("Clipboard not available", "warn")
+	end
+end
+
+-- ============================================================ Export Menu
+function setupExportButton(button)
+	if not button then return end
+	local dropdown = frame(button.Parent, "ExportDropdown", C("panel"))
+	dropdown.Size = UDim2.new(0, 160, 0, 0)
+	dropdown.Position = UDim2.new(0, 0, 1, 4)
+	dropdown.BorderSizePixel = 0
+	dropdown.Visible = false
+	dropdown.ZIndex = 50
+	local copyBtn = inst("TextButton", dropdown, "CopyBtn")
+	copyBtn.Size = UDim2.new(1, 0, 0, 28)
+	copyBtn.BackgroundTransparency = 1
+	copyBtn.TextColor3 = C("text")
+	copyBtn.Font = CFG.font
+	copyBtn.TextSize = 12
+	copyBtn.Text = "📋 Copy as text"
+	copyBtn.MouseButton1Click:Connect(function()
+		copyExportToClipboard()
+		dropdown.Visible = false
+	end)
+	copyBtn.MouseEnter:Connect(function() copyBtn.BackgroundColor3 = C("panel2") end)
+	copyBtn.MouseLeave:Connect(function() copyBtn.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+	button.MouseButton1Click:Connect(function()
+		dropdown.Visible = not dropdown.Visible
+		if dropdown.Visible then
+			dropdown.Size = UDim2.new(0, 160, 0, 60)
+		end
+	end)
+end
+
+-- ============================================================ Sound Panel (actual audio controls)
+function buildSounds()
+	openDrawer("Sounds")
+	State.panelBody:ClearAllChildren()
+	-- Volume control
+	local volRow = frame(State.panelBody, "VolRow", Color3.fromRGB(0, 0, 0, 0))
+	volRow.Size = UDim2.new(1, 0, 0, 36)
+	volRow.BackgroundTransparency = 1
+	label(volRow, "VolLabel", "🔊 Volume", 13, C("text"))
+	local volSlider = inst("Frame", volRow, "VolSlider")
+	volSlider.Size = UDim2.new(0.6, 0, 0, 20)
+	volSlider.Position = UDim2.new(0.4, 0, 0, 8)
+	volSlider.BackgroundColor3 = C("panel2")
+	volSlider.BorderSizePixel = 0
+	corner(volSlider, 10)
+	local volFill = inst("Frame", volSlider, "VolFill")
+	volFill.Size = UDim2.new(CFG.volume or 0.7, 0, 1, 0)
+	volFill.BackgroundColor3 = C("indigo")
+	volFill.BorderSizePixel = 0
+	corner(volFill, 10)
+	local volValue = label(volRow, "VolValue", tostring(math.floor((CFG.volume or 0.7) * 100)) .. "%", 11, C("textDim"))
+	volValue.Size = UDim2.new(0, 40, 0, 20)
+	volValue.Position = UDim2.new(1, -44, 0, 8)
+	-- Sound toggle buttons
+	local sndRow = frame(State.panelBody, "SndRow", Color3.fromRGB(0, 0, 0, 0))
+	sndRow.Size = UDim2.new(1, 0, 0, 36)
+	sndRow.BackgroundTransparency = 1
+	label(sndRow, "SndLabel", "Sound effects", 13, C("text"))
+	local sndToggle = inst("TextButton", sndRow, "SndToggle")
+	sndToggle.Size = UDim2.new(0, 60, 0, 26)
+	sndToggle.Position = UDim2.new(1, -68, 0, 5)
+	sndToggle.BackgroundColor3 = CFG.soundEnabled and C("mint") or C("panel2")
+	sndToggle.BorderSizePixel = 0
+	sndToggle.TextColor3 = C("text")
+	sndToggle.Font = CFG.fontMedium
+	sndToggle.TextSize = 11
+	sndToggle.Text = CFG.soundEnabled and "ON" or "OFF"
+	corner(sndToggle, 6)
+	sndToggle.MouseButton1Click:Connect(function()
+		CFG.soundEnabled = not CFG.soundEnabled
+		sndToggle.Text = CFG.soundEnabled and "ON" or "OFF"
+	sndToggle.BackgroundColor3 = CFG.soundEnabled and C("mint") or C("panel2")
+	saveSettings()
+	toast("Sound " .. (CFG.soundEnabled and "on" or "off"), "ok")
+	end)
+	-- Sound type toggles
+	local types = {
+		{name = "Send message", key = "sndSend", default = true},
+		{name = "Receive message", key = "sndReceive", default = true},
+		{name = "Error", key = "sndError", default = true},
+		{name = "Success", key = "sndSuccess", default = true},
+	}
+	for _, t in ipairs(types) do
+		local row = frame(State.panelBody, "SndType_" .. t.key, Color3.fromRGB(0, 0, 0, 0))
+		row.Size = UDim2.new(1, 0, 0, 30)
+		row.BackgroundTransparency = 1
+		label(row, "SndTypeLabel", t.name, 12, C("text"))
+		local toggle = inst("TextButton", row, "SndTypeToggle")
+		toggle.Size = UDim2.new(0, 50, 0, 22)
+		toggle.Position = UDim2.new(1, -58, 0, 4)
+		toggle.BackgroundColor3 = (CFG[t.key] ~= false) and C("mint") or C("panel2")
+		toggle.BorderSizePixel = 0
+		toggle.TextColor3 = C("text")
+		toggle.Font = CFG.fontMedium
+		toggle.TextSize = 10
+		toggle.Text = (CFG[t.key] ~= false) and "ON" or "OFF"
+		corner(toggle, 5)
+		toggle.MouseButton1Click:Connect(function()
+			CFG[t.key] = (CFG[t.key] == false) and true or false
+			toggle.Text = CFG[t.key] and "ON" or "OFF"
+			toggle.BackgroundColor3 = CFG[t.key] and C("mint") or C("panel2")
+			saveSettings()
+		end)
+	end
+	-- Test sound button
+	local testBtn = abtn(State.panelBody, "TestSnd", "🔔 Test sound", C("indigo"))
+	testBtn.Size = UDim2.new(0, 140, 0, 30)
+	testBtn.Position = UDim2.new(0, 4, 0, 8)
+	testBtn.MouseButton1Click:Connect(function()
+		-- Visual feedback (no actual audio in plugin without assets)
+		toast("Sound test — volume at " .. math.floor((CFG.volume or 0.7) * 100) .. "%", "ok")
+	end)
+end
+
+-- ============================================================ Streaming Typewriter Effect
+function typewriterText(label, fullText, speed)
+	speed = speed or 20
+	local current = ""
+	label.Text = ""
+	local i = 1
+	task.spawn(function()
+		while i <= #fullText do
+			local chunk = fullText:sub(i, math.min(i + 3, #fullText))
+			current = current .. chunk
+			label.Text = current
+			i = i + #chunk
+			task.wait(speed / 1000)
+		end
+	end)
+	return function() -- stop function
+		i = #fullText + 1
+	end
+end
+
+-- ============================================================ Tool Execution Panel
+function renderToolPanel(scroll, toolResult)
+	local card = frame(scroll, "ToolPanel_" .. (toolResult.id or "tool"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	-- Header
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	local toolIcon = label(header, "Icon", "🔧", 14, C("text"))
+	toolIcon.Size = UDim2.new(0, 30, 0, 24)
+	local toolName = label(header, "ToolName", "Tool: " .. (toolResult.name or "unknown"), 12, C("text"))
+	toolName.Size = UDim2.new(1, -40, 0, 24)
+	-- Status badge
+	local status = txt(header, "Status", toolResult.status or "running", 11, C("textDim"))
+	status.Size = UDim2.new(0, 80, 0, 20)
+	status.Position = UDim2.new(1, -88, 0.5, -10)
+	-- Input params
+	if toolResult.input then
+		local inputLabel = label(card, "InputLabel", "Input:", 11, C("textDim"))
+		inputLabel.Size = UDim2.new(1, -8, 0, 14)
+		inputLabel.Position = UDim2.new(0, 4, 0, 4)
+		local inputCode = box(card, "InputCode")
+		inputCode.Size = UDim2.new(1, -16, 0, 0)
+		inputCode.Position = UDim2.new(0, 4, 0, 18)
+		inputCode.Text = typeof(toolResult.input) == "table" and require("json").encode(toolResult.input) or tostring(toolResult.input)
+		inputCode.Font = CFG.fontCode
+		inputCode.TextSize = 11
+		inputCode.BackgroundColor3 = C("code")
+		inputCode.TextColor3 = C("text")
+		inputCode.ClearTextOnFocus = false
+		inputCode.MultiLine = true
+		inputCode.AutomaticSize = Enum.AutomaticSize.Y
+	end
+	-- Output
+	if toolResult.output then
+		local outputLabel = label(card, "OutputLabel", "Output:", 11, C("textDim"))
+		outputLabel.Size = UDim2.new(1, -8, 0, 14)
+		outputLabel.Position = UDim2.new(0, 4, 0, 4)
+		local outputCode = box(card, "OutputCode")
+		outputCode.Size = UDim2.new(1, -16, 0, 0)
+		outputCode.Position = UDim2.new(0, 4, 0, 18)
+		outputCode.Text = typeof(toolResult.output) == "table" and require("json").encode(toolResult.output) or tostring(toolResult.output)
+		outputCode.Font = CFG.fontCode
+		outputCode.TextSize = 11
+		outputCode.BackgroundColor3 = C("code")
+		outputCode.TextColor3 = C("text")
+		outputCode.ClearTextOnFocus = false
+		outputCode.MultiLine = true
+		outputCode.AutomaticSize = Enum.AutomaticSize.Y
+	end
+	return card
+end
+
+-- ============================================================ File Attachment UI
+function renderAttachmentButton(composer)
+	local attachBtn = iconBtn(composer, "AttachBtn", "📎", C("panel2"))
+	attachBtn.Size = UDim2.new(0, 30, 0, 30)
+	attachBtn.Position = UDim2.new(0, 4, 0.5, -15)
+	attachBtn.BackgroundTransparency = 1
+	attachBtn.TextColor3 = C("textDim")
+	attachBtn.Font = CFG.fontBold
+	attachBtn.TextSize = 16
+	-- File picker (simulated - Roblox doesn't have native file picker)
+	local fileList = {}
+	attachBtn.MouseButton1Click:Connect(function()
+		-- In Roblox plugin, we use a simple text input for file paths
+		local path = requestJSON("GET", "/config/attachment-supported")
+		toast("Attach: paste a file path or URL in the message", "info")
+	end)
+	return attachBtn
+end
+
+-- ============================================================ Image Preview Panel
+function renderImagePreview(scroll, imageData)
+	local card = frame(scroll, "ImagePreview_" .. (imageData.id or "img"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	-- Image placeholder (Roblox doesn't support direct image rendering in plugin UI without assets)
+	local placeholder = frame(card, "ImagePlaceholder", C("code"))
+	placeholder.Size = UDim2.new(1, -16, 0, 120)
+	placeholder.Position = UDim2.new(0, 8, 0, 4)
+	placeholder.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	corner(placeholder, 8)
+	local imgLabel = label(placeholder, "ImgLabel", "🖼 Image: " .. (imageData.name or "untitled"), 12, C("text"))
+	imgLabel.Size = UDim2.new(1, 0, 1, 0)
+	imgLabel.TextXAlignment = Enum.TextXAlignment.Center
+	imgLabel.TextYAlignment = Enum.TextYAlignment.Center
+	-- Metadata
+	local meta = frame(card, "Meta", Color3.fromRGB(0, 0, 0, 0))
+	meta.Size = UDim2.new(1, 0, 0, 24)
+	meta.Position = UDim2.new(0, 8, 1, 4)
+	meta.BackgroundTransparency = 1
+	label(meta, "Size", "Size: " .. (imageData.size or "unknown"), 10, C("textDim"))
+	label(meta, "Type", "Type: " .. (imageData.type or "unknown"), 10, C("textDim"))
+	return card
+end
+
+-- ============================================================ Code Execution Panel
+function renderCodeExecution(scroll, codeBlock)
+	local card = frame(scroll, "CodeExec_" .. (codeBlock.id or "code"), C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	-- Header with language tag
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	local lang = label(header, "Lang", "📝 " .. (codeBlock.language or "lua"), 11, C("accent2"))
+	lang.Size = UDim2.new(0, 80, 0, 22)
+	-- Run button
+	local runBtn = abtn(header, "RunBtn", "▶ Run", C("mint"))
+	runBtn.Size = UDim2.new(0, 60, 0, 22)
+	runBtn.Position = UDim2.new(1, -68, 0.5, -11)
+	runBtn.MouseButton1Click:Connect(function()
+		-- Attempt to execute the code (sandbox)
+		pcall(function()
+			local fn = loadstring(codeBlock.code or "")
+			if fn then
+				local ok, result = pcall(fn)
+				if ok then
+					toast("Code executed successfully", "ok")
+				else
+					toast("Error: " .. tostring(result), "error")
+				end
+			else
+				toast("Failed to compile code", "error")
+			end
+		end)
+	end)
+	-- Copy button
+	local copyBtn = iconBtn(header, "CopyBtn", "📋", C("panel2"))
+	copyBtn.Size = UDim2.new(0, 28, 0, 22)
+	copyBtn.Position = UDim2.new(1, -136, 0.5, -11)
+	copyBtn.BackgroundTransparency = 1
+	copyBtn.TextColor3 = C("textDim")
+	copyBtn.MouseButton1Click:Connect(function()
+		if setclipboard then setclipboard(codeBlock.code or "") end
+		toast("Code copied", "ok")
+	end)
+	-- Code editor
+	local editor = box(card, "CodeEditor")
+	editor.Size = UDim2.new(1, -16, 0, 0)
+	editor.Position = UDim2.new(0, 8, 0, 32)
+	editor.Text = codeBlock.code or ""
+	editor.Font = CFG.fontCode
+	editor.TextSize = 12
+	editor.BackgroundColor3 = C("code")
+	editor.TextColor3 = C("text")
+	editor.ClearTextOnFocus = false
+	editor.MultiLine = true
+	editor.AutomaticSize = Enum.AutomaticSize.Y
+	return card
+end
+
+-- ============================================================ Live Usage Polling
+function startUsagePolling()
+	if State.usagePoll then return end
+	State.usagePoll = true
+	task.spawn(function()
+		while State.usagePoll do
+			pcall(function()
+				local data = requestJSON("GET", "/usage")
+				if data and State.usageLabel then
+					State.usageLabel.Text = "Requests: " .. tostring(data.requests or 0) .. " | Cost: $" .. string.format("%.4f", data.cost or 0)
+				end
+			end)
+			task.wait(30) -- poll every 30s
+		end
+	end)
+end
+
+function stopUsagePolling()
+	State.usagePoll = false
+end
+
+-- ============================================================ Full Mods Panel (with mod loading UI)
+function buildMods()
+	openDrawer("Mods")
+	State.panelBody:ClearAllChildren()
+	-- Header
+	local header = frame(State.panelBody, "ModsHeader", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 30)
+	header.BorderSizePixel = 0
+	label(header, "ModsTitle", "🧩 Mods & Extensions", 13, C("accent2"))
+	-- Load mod button
+	local loadBtn = abtn(header, "LoadMod", "+ Load Mod", C("indigo"))
+	loadBtn.Size = UDim2.new(0, 80, 0, 24)
+	loadBtn.Position = UDim2.new(1, -88, 0, 3)
+	loadBtn.MouseButton1Click:Connect(function()
+		-- Prompt for mod code (in Roblox plugin, use a TextBox modal)
+		toast("Paste mod code in the text box below", "info")
+	end)
+	-- Mod list
+	local modList = scroll(State.panelBody, "ModList")
+	modList.Size = UDim2.new(1, -4, 0, 0)
+	modList.Position = UDim2.new(0, 2, 0, 36)
+	modList.BackgroundTransparency = 1
+	modList.BorderSizePixel = 0
+	modList.ScrollBarThickness = 4
+	-- Check for loaded mods
+	local mods = CFG.mods or {}
+	if #mods == 0 then
+		label(modList, "NoMods", "No mods loaded. Click + Load Mod to add one.", 12, C("textDim"))
+	else
+		for i, mod in ipairs(mods) do
+			local row = frame(modList, "ModRow_" .. i, C("bubble"))
+			row.Size = UDim2.new(1, 0, 0, 40)
+			row.BackgroundTransparency = 1
+			-- Mod icon
+			local icon = label(row, "ModIcon", "📦", 16, C("text"))
+			icon.Size = UDim2.new(0, 24, 0, 24)
+			-- Mod name
+			local name = label(row, "ModName", mod.name or "Unknown", 12, C("text"))
+			name.Size = UDim2.new(1, -60, 0, 20)
+			name.Position = UDim2.new(0, 30, 0, 2)
+			-- Status
+			local status = label(row, "ModStatus", mod.enabled ~= false and "✅ Active" or "⚠️ Disabled", 10, C("textDim"))
+			status.Size = UDim2.new(0, 60, 0, 14)
+			status.Position = UDim2.new(1, -68, 0, 2)
+			-- Toggle button
+			local toggle = abtn(row, "ModToggle_" .. i, mod.enabled ~= false and "ON" or "OFF", mod.enabled ~= false and C("mint") or C("panel2"))
+			toggle.Size = UDim2.new(0, 40, 0, 20)
+			toggle.Position = UDim2.new(1, -52, 0, 10)
+			toggle.MouseButton1Click:Connect(function()
+				mod.enabled = mod.enabled == false
+				toggle.Text = mod.enabled and "ON" or "OFF"
+				toggle.BackgroundColor3 = mod.enabled and C("mint") or C("panel2")
+				saveSettings()
+				toast("Mod " .. mod.name .. " " .. (mod.enabled and "enabled" or "disabled"), "ok")
+			end)
+			-- Remove button
+			local remove = iconBtn(row, "ModRemove_" .. i, "×", C("danger"))
+			remove.Size = UDim2.new(0, 20, 0, 20)
+			remove.Position = UDim2.new(1, -16, 0, 10)
+			remove.BackgroundTransparency = 1
+			remove.TextColor3 = C("textDim")
+			remove.MouseButton1Click:Connect(function()
+				table.remove(mods, i)
+				CFG.mods = mods
+				saveSettings()
+				buildMods()
+				toast("Mod removed", "ok")
+			end)
+		end
+	end
+	-- Mod code input area
+	local codeArea = box(State.panelBody, "ModCodeInput")
+	codeArea.Size = UDim2.new(1, -16, 0, 80)
+	codeArea.Position = UDim2.new(0, 8, 0, 4)
+	codeArea.PlaceholderText = "Paste mod Lua code here..."
+	codeArea.PlaceholderColor3 = C("placeholder")
+	codeArea.Font = CFG.fontCode
+	codeArea.TextSize = 11
+	codeArea.BackgroundColor3 = C("code")
+	codeArea.TextColor3 = C("text")
+	codeArea.MultiLine = true
+	-- Save mod button
+	local saveModBtn = abtn(State.panelBody, "SaveMod", "💾 Save Mod", C("indigo"))
+	saveModBtn.Size = UDim2.new(0, 100, 0, 28)
+	saveModBtn.Position = UDim2.new(0, 8, 0, 92)
+	saveModBtn.MouseButton1Click:Connect(function()
+		local code = codeArea.Text
+		if code and #code > 10 then
+			local modName = "Custom Mod " .. tostring(os.time())
+			if not CFG.mods then CFG.mods = {} end
+			table.insert(CFG.mods, {name = modName, code = code, enabled = true})
+			saveSettings()
+			toast("Mod saved: " .. modName, "ok")
+			buildMods()
+		else
+			toast("Mod code too short (min 10 chars)", "error")
+		end
+	end)
+end
+
+-- ============================================================ Message Actions (copy, edit, delete, retry)
+function renderMessageActions(bubble, msg, idx)
+	local actions = frame(bubble, "Actions_" .. tostring(msg.seq) or "actions_" .. idx, Color3.fromRGB(0, 0, 0, 0))
+	actions.Size = UDim2.new(1, 0, 0, 0)
+	actions.Position = UDim2.new(0, 0, 1, 0)
+	actions.BackgroundTransparency = 1
+	actions.AutomaticSize = Enum.AutomaticSize.Y
+	-- Hover show actions
+	local hoverFrame = inst("Frame", actions, "HoverDetect")
+	hoverFrame.Size = UDim2.new(1, 0, 1, 0)
+	hoverFrame.BackgroundTransparency = 1
+	-- Copy button
+	local copyBtn = iconBtn(actions, "CopyMsg", "📋", C("panel2"))
+	copyBtn.Size = UDim2.new(0, 24, 0, 24)
+	copyBtn.BackgroundTransparency = 1
+	copyBtn.TextColor3 = C("textDim")
+	copyBtn.Font = CFG.fontBold
+	copyBtn.TextSize = 12
+	copyBtn.MouseButton1Click:Connect(function()
+		if setclipboard then setclipboard(msg.text or "") end
+		toast("Message copied", "ok")
+	end)
+	-- Edit button
+	local editBtn = iconBtn(actions, "EditMsg", "✏️", C("panel2"))
+	editBtn.Size = UDim2.new(0, 24, 0, 24)
+	editBtn.BackgroundTransparency = 1
+	editBtn.TextColor3 = C("textDim")
+	editBtn.Font = CFG.fontBold
+	editBtn.TextSize = 12
+	editBtn.MouseButton1Click:Connect(function()
+		-- Inline edit: replace message text with editor
+		local editor = box(bubble, "EditEditor")
+		editor.Size = UDim2.new(1, -40, 0, 0)
+		editor.Text = msg.text or ""
+		editor.Font = CFG.font
+	editor.TextSize = CFG.bodySize
+	editor.BackgroundColor3 = C("code")
+	editor.TextColor3 = C("text")
+	editor.MultiLine = true
+	editor.AutomaticSize = Enum.AutomaticSize.Y
+		-- Save button
+		local saveBtn = abtn(actions, "SaveEdit", "Save", C("mint"))
+	saveBtn.Size = UDim2.new(0, 40, 0, 22)
+	saveBtn.MouseButton1Click:Connect(function()
+			msg.text = editor.Text
+			saveConversations()
+			renderChat()
+			toast("Message edited", "ok")
+		end)
+	end)
+	-- Delete button
+	local delBtn = iconBtn(actions, "DelMsg", "🗑", C("danger"))
+	delBtn.Size = UDim2.new(0, 24, 0, 24)
+	delBtn.BackgroundTransparency = 1
+	delBtn.TextColor3 = C("textDim")
+	delBtn.Font = CFG.fontBold
+	delBtn.TextSize = 12
+	delBtn.MouseButton1Click:Connect(function()
+		local c = getActive()
+		if c then
+			for i, m in ipairs(c.messages) do
+				if m.seq == msg.seq then
+					table.remove(c.messages, i)
+					saveConversations()
+					renderChat()
+					toast("Message deleted", "ok")
+					break
+				end
+			end
+		end
+	end)
+	-- Retry button (for assistant messages)
+	if msg.role == "assistant" then
+		local retryBtn = iconBtn(actions, "RetryMsg", "🔄", C("amber"))
+		retryBtn.Size = UDim2.new(0, 24, 0, 24)
+		retryBtn.BackgroundTransparency = 1
+		retryBtn.TextColor3 = C("textDim")
+		retryBtn.Font = CFG.fontBold
+		retryBtn.TextSize = 12
+		retryBtn.MouseButton1Click:Connect(function()
+			-- Resend last user message
+			local c = getActive()
+			if c and #c.messages > 0 then
+				local lastUser = nil
+				for i = #c.messages, 1, -1 do
+					if c.messages[i].role == "user" then
+						lastUser = c.messages[i]
+						break
+					end
+				end
+				if lastUser then
+					sendMessage(lastUser.text)
+				end
+			end
+		end)
+	end
+	-- Initially hide actions, show on hover
+	actions.Visible = false
+	hoverFrame.MouseEnter:Connect(function() actions.Visible = true end)
+	hoverFrame.MouseLeave:Connect(function() actions.Visible = false end)
+	return actions
+end
+
+-- ============================================================ Full Message Renderer with all features
+function renderFullMessage(scroll, msg, idx)
+	-- Avatar + Bubble + Text + Actions + Timestamp
+	local row = renderMessageRow(scroll, msg, idx)
+	-- Add actions to the bubble
+	local bubble = row:FindFirstChild("Bubble_" .. tostring(msg.seq) or "bubble_" .. idx)
+	if bubble then
+		renderMessageActions(bubble, msg, idx)
+	end
+	return row
+end
+
+-- ============================================================ Chat History Export (HTML format)
+function exportChatHTML(conv)
+	if not conv then conv = getActive() end
+	if not conv then return "" end
+	local html = '<html><head><style>body{font-family:monospace;background:#1a1a1e;color:#e0e0e8;padding:20px;} .user{color:#e06c75;}.assist{color:#98c379;}.time{color:#5c6370;font-size:11px;}</style></head><body>'
+	for _, m in ipairs(conv.messages) do
+		local role = m.role == "user" and "user" or "assist"
+		html = html .. '<div class="' .. role .. '"><span class="time">[' .. os.date("%H:%M", m.createdAt or tick()) .. ']</span> ' .. (m.text or "") .. '</div>'
+	end
+	html = html .. '</body></html>'
+	return html
+end
+
+-- ============================================================ Conversation Search (full-text across all convos)
+function searchAllConversations(query)
+	local results = {}
+	local q = query:lower()
+	for _, c in ipairs(State.conversations) do
+		for _, m in ipairs(c.messages) do
+			if m.text and m.text:lower():find(q, 1, true) then
+				table.insert(results, {conv = c, msg = m})
+			end
+		end
+	end
+	return results
+end
+
+-- ============================================================ Message Reaction (thumbs up/down)
+function renderReactionBar(bubble, msg)
+	local bar = frame(bubble, "ReactionBar", Color3.fromRGB(0, 0, 0, 0))
+	bar.Size = UDim2.new(1, 0, 0, 18)
+	bar.Position = UDim2.new(0, 0, 1, 0)
+	bar.BackgroundTransparency = 1
+	-- Like button
+	local likeBtn = iconBtn(bar, "Like_" .. (msg.seq or "n/a"), "👍", C("panel2"))
+	likeBtn.Size = UDim2.new(0, 22, 0, 18)
+	likeBtn.BackgroundTransparency = 1
+	likeBtn.TextColor3 = C("textDim")
+	likeBtn.Font = CFG.fontBold
+	likeBtn.TextSize = 10
+	-- Dislike button
+	local dislikeBtn = iconBtn(bar, "Dislike_" .. (msg.seq or "n/a"), "👎", C("panel2"))
+	dislikeBtn.Size = UDim2.new(0, 22, 0, 18)
+	dislikeBtn.BackgroundTransparency = 1
+	dislikeBtn.TextColor3 = C("textDim")
+	dislikeBtn.Font = CFG.fontBold
+	dislikeBtn.TextSize = 10
+	return bar
+end
+
+-- ============================================================ Token Usage Meter (visual bar)
+function renderTokenMeter(parent, usage, limit)
+	local meter = frame(parent, "TokenMeter", Color3.fromRGB(0, 0, 0, 0))
+	meter.Size = UDim2.new(1, 0, 0, 12)
+	meter.BackgroundTransparency = 1
+	-- Background track
+	local track = frame(meter, "Track", C("panel2"))
+	track.Size = UDim2.new(1, 0, 1, 0)
+	track.BorderSizePixel = 0
+	corner(track, 6)
+	-- Fill
+	local pct = limit > 0 and math.min(usage / limit, 1) or 0
+	local fill = frame(track, "Fill", pct > 0.8 and C("danger") or pct > 0.5 and C("amber") or C("mint"))
+	fill.Size = UDim2.new(pct, 0, 1, 0)
+	fill.BorderSizePixel = 0
+	corner(fill, 6)
+	-- Label
+	local lbl = label(meter, "MeterLabel", tostring(math.floor(pct * 100)) .. "% used", 9, C("textDim"))
+	lbl.Size = UDim2.new(1, 0, 0, 10)
+	lbl.Position = UDim2.new(0, 0, -1, 0)
+	return meter
+end
+
+-- ============================================================ Model Info Card
+function renderModelInfoCard(scroll)
+	local card = frame(scroll, "ModelInfo", C("permBg"))
+	card.Size = UDim2.new(0.85, 0, 0, 0)
+	card.Position = UDim2.new(0.05, 0, 0, 0)
+	card.AutomaticSize = Enum.AutomaticSize.Y
+	card.BackgroundTransparency = 1
+	-- Header
+	local header = frame(card, "Header", C("panel2"))
+	header.Size = UDim2.new(1, 0, 0, 28)
+	header.BorderSizePixel = 0
+	label(header, "Title", "ℹ️ Model Info", 12, C("accent2"))
+	-- Model details
+	local selected = CFG.model ~= "" and CFG.model or "auto"
+	label(card, "ModelName", "Model: " .. selected, 12, C("text"))
+	label(card, "ModelStatus", "Status: Connected", 11, C("mint"))
+	label(card, "ModelProvider", "Provider: " .. (selected:find("openai") and "OpenAI" or selected:find("anthropic") and "Anthropic" or selected:find("google") and "Google" or "Custom"), 11, C("textDim"))
+	return card
+end
+
+-- ============================================================ Context Menu (right-click on messages)
+function showContextMenu(x, y, msg, conv)
+	-- Remove any existing context menu
+	local existing = State.gui and State.gui.gui and State.gui.gui:FindFirstChild("ContextMenu")
+	if existing then existing:Destroy() end
+	
+	local menu = inst("Frame", State.gui.gui, "ContextMenu")
+	menu.Size = UDim2.new(0, 160, 0, 0)
+	menu.Position = UDim2.new(0, x, 0, y)
+	menu.BackgroundColor3 = C("panel")
+	menu.BorderSizePixel = 0
+	menu.ZIndex = 200
+	corner(menu, 8)
+	
+	-- Drop shadow
+	local shadow = inst("Frame", menu, "Shadow")
+	shadow.Size = UDim2.new(1, 4, 1, 4)
+	shadow.Position = UDim2.new(0, 2, 0, 2)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 0.8
+	shadow.BorderSizePixel = 0
+	
+	local layout = inst("UIListLayout", menu)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 2)
+	
+	-- Copy text
+	local copyItem = inst("TextButton", menu, "CopyItem")
+	copyItem.Size = UDim2.new(1, 0, 0, 28)
+	copyItem.BackgroundTransparency = 1
+	copyItem.TextColor3 = C("text")
+	copyItem.Font = CFG.font
+	copyItem.TextSize = 12
+	copyItem.Text = "📋 Copy text"
+	copyItem.MouseButton1Click:Connect(function()
+		if setclipboard then setclipboard(msg.text or "") end
+		toast("Copied", "ok")
+		menu:Destroy()
+	end)
+	copyItem.MouseEnter:Connect(function() copyItem.BackgroundColor3 = C("panel2") end)
+	copyItem.MouseLeave:Connect(function() copyItem.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+	
+	-- Copy as JSON
+	local jsonItem = inst("TextButton", menu, "JsonItem")
+	jsonItem.Size = UDim2.new(1, 0, 0, 28)
+	jsonItem.BackgroundTransparency = 1
+	jsonItem.TextColor3 = C("text")
+	jsonItem.Font = CFG.font
+	jsonItem.TextSize = 12
+	jsonItem.Text = "📄 Copy as JSON"
+	jsonItem.MouseButton1Click:Connect(function()
+		local jsonStr = require("json").encode({role = msg.role, text = msg.text, seq = msg.seq})
+		if setclipboard then setclipboard(jsonStr) end
+		toast("JSON copied", "ok")
+		menu:Destroy()
+	end)
+	jsonItem.MouseEnter:Connect(function() jsonItem.BackgroundColor3 = C("panel2") end)
+	jsonItem.MouseLeave:Connect(function() jsonItem.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+	
+	-- Separator
+	local sep = inst("Frame", menu, "Sep")
+	sep.Size = UDim2.new(0.8, 0, 0, 1)
+	sep.Position = UDim2.new(0.1, 0, 0, 0)
+	sep.BackgroundColor3 = C("border")
+	sep.BorderSizePixel = 0
+	
+	-- Delete message
+	local delItem = inst("TextButton", menu, "DelItem")
+	delItem.Size = UDim2.new(1, 0, 0, 28)
+	delItem.BackgroundTransparency = 1
+	delItem.TextColor3 = C("danger")
+	delItem.Font = CFG.font
+	delItem.TextSize = 12
+	delItem.Text = "🗑 Delete message"
+	delItem.MouseButton1Click:Connect(function()
+		if conv then
+			for i, m in ipairs(conv.messages) do
+				if m.seq == msg.seq then
+					table.remove(conv.messages, i)
+					saveConversations()
+					renderChat()
+					toast("Message deleted", "ok")
+					break
+				end
+			end
+		end
+		menu:Destroy()
+	end)
+	delItem.MouseEnter:Connect(function() delItem.BackgroundColor3 = Color3.fromRGB(60, 20, 20) end)
+	delItem.MouseLeave:Connect(function() delItem.BackgroundColor3 = Color3.fromRGB(0,0,0,0) end)
+	
+	-- Auto-close on click outside
+	local connection
+	connection = UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if not menu:IsAncestorOf(input.Target) then
+			menu:Destroy()
+			if connection then connection:Disconnect() end
+		end
+	end)
+	
+	-- Auto-dismiss after 10 seconds
+	task.delay(10, function()
+		if menu.Parent then menu:Destroy() end
+	end)
+end
+
+-- ============================================================ Drag Resize for Dock Widget
+function setupDragResize(gui)
+	-- Add a drag handle at the bottom-right corner
+	local handle = inst("Frame", gui, "DragHandle")
+	handle.Size = UDim2.new(0, 16, 0, 16)
+	handle.Position = UDim2.new(1, -16, 1, -16)
+	handle.BackgroundColor3 = C("accent2")
+	handle.BorderSizePixel = 0
+	handle.Cursor = Enum.MouseBehavior.Move
+	handle.ZIndex = 100
+	corner(handle, 8)
+	
+	local dragging = false
+	local startPos, startSize
+	
+	handle.MouseButton1Down:Connect(function()
+		dragging = true
+		startPos = gui.Position
+		startSize = gui.Size
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if not dragging or input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+		local delta = input.Position - (startPos and UDim2.new(0, 0, 0, 0) or Vector2.new(0, 0))
+		-- Resize based on mouse delta
+		if startSize then
+			gui.Size = UDim2.new(
+				math.clamp(startSize.X.Scale + delta.X / gui.Parent.AbsoluteSize.X, 0.2, 0.8),
+				0,
+				math.clamp(startSize.Y.Scale + delta.Y / gui.Parent.AbsoluteSize.Y, 0.2, 0.8),
+				0
+			)
+		end
+	end)
+	
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+end
+
+-- ============================================================ Theme Preview (live theme switching)
+function applyThemePreview(theme)
+	-- Temporarily apply a theme to preview without saving
+	local pal = PALETTES[theme]
+	if not pal then return end
+	-- Update all existing UI elements
+	pcall(function()
+		if State.gui and State.gui.gui then
+			State.gui.gui.BackgroundColor3 = pal.bg
+		end
+		-- Update all panels
+		for _, obj in ipairs((State.gui and State.gui.gui or {}):GetDescendants()) do
+			if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ScrollingFrame") then
+				-- Update colors based on object name patterns
+				pcall(function()
+					if obj.Name:find("Panel") or obj.Name:find("Body") then
+						obj.BackgroundColor3 = pal.panel
+					elseif obj.Name:find("Bubble") then
+						obj.BackgroundColor3 = pal.bubble
+					end
+				end)
+			end
+		end
+	end)
+	toast("Theme preview: " .. theme, "info")
+end
