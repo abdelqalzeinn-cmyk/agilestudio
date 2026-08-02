@@ -58,3 +58,15 @@ a{color:var(--indigo-l);text-decoration:none}
 .usage-box{font-size:15px}
 .badge{background:var(--amber);color:#1a1206;font-size:11px;padding:2px 6px;border-radius:6px;margin-left:6px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--indigo);color:#fff;padding:12px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:14px}
+
+/* legal pages */
+.legal-page{background:var(--bg)}
+.legal{max-width:760px;margin:0 auto;padding:40px 20px 80px}
+.legal h1{font-size:30px;margin-bottom:4px}
+.legal .updated{color:var(--dim);font-size:13px;margin-bottom:24px}
+.legal h2{font-size:19px;margin:26px 0 8px;color:var(--indigo-l)}
+.legal p,.legal li{color:var(--text);line-height:1.6;font-size:15px}
+.legal ul{padding-left:22px}
+.legal a{color:var(--indigo-l)}
+.legal .footer-links{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);font-size:14px}
+.legal .footer-links a{margin-right:18px}

@@ -257,6 +257,14 @@ def dashboard():
 def admin_page():
     return FileResponse(WEB / "admin.html")
 
+@app.get("/terms", response_class=HTMLResponse)
+def terms_page():
+    return FileResponse(WEB / "terms.html")
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_page():
+    return FileResponse(WEB / "privacy.html")
+
 @app.get("/app.js")
 def appjs():
     return FileResponse(WEB / "app.js", media_type="application/javascript")
