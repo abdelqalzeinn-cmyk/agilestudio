@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AgileStudio — Dashboard</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body class="app-page">
+  <header class="topbar">
+    <div class="brand small">
+      <div class="mascot sm"><div class="ant"></div><div class="glow"></div><div class="body"></div><div class="eye l"></div><div class="eye r"></div></div>
+      <span>AgileStudio</span>
+    </div>
+    <nav>
+      <a href="/dashboard">Tokens</a>
+      <a href="#" id="usageLink">Usage</a>
+      <span id="adminLinkWrap" class="hidden"><a href="/admin">Admin</a></span>
+      <a href="/auth/logout">Sign out</a>
+    </nav>
+  </header>
+
+  <main class="dash">
+    <section class="panel">
+      <h2>API Tokens</h2>
+      <p class="muted">Mint a token and paste it into the AgileStudio plugin (Settings → Token). The plugin uses it as a Bearer key.</p>
+      <div class="token-maker">
+        <input id="tokenName" placeholder="Token name (e.g. My Plugin)" />
+        <select id="tokenScopes">
+          <option value="chat,tools">chat + tools</option>
+          <option value="chat">chat only</option>
+          <option value="tools">tools only</option>
+        </select>
+        <button id="createToken">Create token</button>
+      </div>
+      <div id="newToken" class="new-token hidden"></div>
+      <div id="tokenList" class="token-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Usage (today)</h2>
+      <div id="usageBox" class="usage-box">Loading…</div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

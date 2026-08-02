@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AgileStudio — Admin</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body class="app-page">
+  <header class="topbar">
+    <div class="brand small">
+      <div class="mascot sm"><div class="ant"></div><div class="glow"></div><div class="body"></div><div class="eye l"></div><div class="eye r"></div></div>
+      <span>AgileStudio</span>
+    </div>
+    <nav><a href="/dashboard">Dashboard</a><a href="/auth/logout">Sign out</a></nav>
+  </header>
+
+  <main class="dash">
+    <section class="panel">
+      <h2>Platform stats</h2>
+      <div id="statsBox" class="usage-box">Loading…</div>
+    </section>
+    <section class="panel">
+      <h2>Users</h2>
+      <div id="userTable" class="user-table"></div>
+    </section>
+  </main>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

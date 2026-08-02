@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- AgileStudio mascot: friendly round creature, bold brand -->
+  <defs>
+    <radialGradient id="body" cx="50%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#8C8CF0"/>
+      <stop offset="100%" stop-color="#5B5BD6"/>
+    </radialGradient>
+    <radialGradient id="belly" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#B4B4F7"/>
+      <stop offset="100%" stop-color="#7C7CE8"/>
+    </radialGradient>
+  </defs>
+
+  <!-- antenna -->
+  <rect x="250" y="70" width="12" height="70" rx="6" fill="#8C8CF0"/>
+  <circle cx="256" cy="64" r="26" fill="#FFB23E"/>
+  <circle cx="256" cy="64" r="26" fill="#FFB23E" opacity="0.35"/>
+
+  <!-- body -->
+  <ellipse cx="256" cy="280" rx="180" ry="170" fill="url(#body)"/>
+  <ellipse cx="256" cy="300" rx="120" ry="110" fill="url(#belly)" opacity="0.5"/>
+
+  <!-- mint base ring -->
+  <path d="M 100 360 A 160 120 0 0 0 412 360" fill="none" stroke="#3DDC97" stroke-width="14" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- eyes -->
+  <circle cx="200" cy="265" r="34" fill="#FFFFFF"/>
+  <circle cx="312" cy="265" r="34" fill="#FFFFFF"/>
+  <circle cx="208" cy="272" r="16" fill="#1B1B2E"/>
+  <circle cx="320" cy="272" r="16" fill="#1B1B2E"/>
+  <circle cx="214" cy="266" r="5" fill="#FFFFFF"/>
+  <circle cx="326" cy="266" r="5" fill="#FFFFFF"/>
+
+  <!-- smile -->
+  <path d="M 210 330 Q 256 372 302 330" fill="none" stroke="#1B1B2E" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- nub arms -->
+  <circle cx="92" cy="300" r="22" fill="#5B5BD6"/>
+  <circle cx="420" cy="300" r="22" fill="#5B5BD6"/>
+</svg>

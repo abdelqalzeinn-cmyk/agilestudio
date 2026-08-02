@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+.venv/
+
+# Local data / sqlite
+backend/data/
+*.db
+*.sqlite
+agilestudio.db
+
+# Env / secrets
+.env
+.env.*
+secrets.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

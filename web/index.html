@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AgileStudio — Sign in</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="mascot" aria-hidden="true">
+        <div class="ant"></div><div class="glow"></div>
+        <div class="body"></div><div class="eye l"></div><div class="eye r"></div>
+      </div>
+      <h1>AgileStudio</h1>
+    </div>
+    <p class="tag">Your Roblox coding buddy. Build scripts, animations &amp; tools with AI.</p>
+
+    <form id="loginForm" class="form">
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+      <input id="password" type="password" placeholder="Password (min 6)" autocomplete="current-password" required />
+      <button type="submit" id="loginBtn">Sign in</button>
+      <div id="loginErr" class="err"></div>
+      <div class="switch">No account? <a href="#" id="toRegister">Create one</a></div>
+    </form>
+
+    <form id="registerForm" class="form hidden">
+      <input id="regName" type="text" placeholder="Display name" />
+      <input id="regEmail" type="email" placeholder="you@example.com" required />
+      <input id="regPassword" type="password" placeholder="Password (min 6)" required />
+      <button type="submit" id="regBtn">Create account</button>
+      <div id="regErr" class="err"></div>
+      <div class="switch">Have an account? <a href="#" id="toLogin">Sign in</a></div>
+    </form>
+
+    <div class="oauth">
+      <button id="robloxBtn" class="roblox">Continue with Roblox</button>
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

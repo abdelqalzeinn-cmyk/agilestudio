@@ -1,0 +1,60 @@
+:root{
+  --bg:#12121e; --panel:#1e1e30; --panel2:#181826; --surface:#2a2a42;
+  --indigo:#5B5BD6; --indigo-l:#9696f5; --mint:#3DDC97; --amber:#FFB23E;
+  --text:#f0f0f8; --dim:#a5a8bc; --border:#3c3c5c; --danger:#f05a6e;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Gotham,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+a{color:var(--indigo-l);text-decoration:none}
+.muted{color:var(--dim);font-size:13px}
+.hidden{display:none !important}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+/* mascot */
+.mascot{position:relative;width:64px;height:64px;margin:0 auto}
+.mascot.sm{width:30px;height:30px;display:inline-block;vertical-align:middle;margin:0 8px 0 0}
+.mascot .body{position:absolute;inset:8px 6px 0 6px;background:linear-gradient(160deg,var(--indigo-l),var(--indigo));border-radius:50%;box-shadow:0 0 0 2px var(--indigo-l) inset}
+.mascot .ant{position:absolute;left:50%;top:0;width:3px;height:14px;background:var(--indigo-l);transform:translateX(-50%)}
+.mascot .glow{position:absolute;left:50%;top:-4px;width:10px;height:10px;background:var(--amber);border-radius:50%;transform:translateX(-50%);animation:pulse 1.1s ease-in-out infinite alternate}
+.mascot .eye{position:absolute;top:46%;width:8px;height:8px;background:var(--text);border-radius:50%}
+.mascot.sm .eye{width:4px;height:4px}
+.mascot .eye.l{left:38%}.mascot .eye.r{right:38%}
+@keyframes pulse{from{opacity:1}to{opacity:.4}}
+
+/* auth */
+.auth-page{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.auth-card{background:var(--panel);padding:32px;border-radius:16px;width:360px;box-shadow:0 10px 40px rgba(0,0,0,.4);text-align:center}
+.brand{display:flex;flex-direction:column;align-items:center;gap:6px}
+.brand.small{flex-direction:row;font-weight:700;font-size:18px;margin:0}
+.brand h1{margin:0;font-size:26px;letter-spacing:-.5px}
+.tag{color:var(--dim);font-size:14px;margin:4px 0 20px}
+.form{display:flex;flex-direction:column;gap:10px}
+.form input,.form select{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:11px 12px;border-radius:9px;font-size:14px;outline:none}
+.form input:focus{border-color:var(--indigo)}
+.form button{background:var(--indigo);color:#fff;border:0;padding:11px;border-radius:9px;font-weight:600;cursor:pointer;font-size:14px}
+.form button:hover{filter:brightness(1.08)}
+.err{color:var(--danger);font-size:13px;min-height:16px}
+.switch{font-size:13px;color:var(--dim)}
+.oauth{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}
+.roblox{width:100%;background:#00a2ff;color:#fff;border:0;padding:11px;border-radius:9px;font-weight:600;cursor:pointer}
+
+/* app */
+.app-page{min-height:100vh}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 22px;background:var(--panel);border-bottom:1px solid var(--border)}
+.topbar nav a{margin-left:18px;color:var(--dim);font-size:14px}
+.topbar nav a:hover{color:var(--text)}
+.dash{max-width:900px;margin:24px auto;padding:0 16px;display:grid;gap:18px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px}
+.panel h2{margin:0 0 6px;font-size:18px}
+.token-maker{display:flex;gap:8px;margin:12px 0}
+.token-maker input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px}
+.token-maker select{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px}
+.token-maker button,.token-row button,.user-row button{background:var(--mint);color:#0b1f15;border:0;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer}
+.token-row button,.user-row button{background:var(--danger);color:#fff}
+.new-token{background:var(--panel2);border:1px dashed var(--indigo);padding:12px;border-radius:10px;margin-bottom:12px;font-size:14px}
+.new-token code{color:var(--mint);font-size:13px;word-break:break-all}
+.token-list,.user-table{display:grid;gap:8px;margin-top:10px}
+.token-row,.user-row{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);padding:10px 12px;border-radius:10px}
+.usage-box{font-size:15px}
+.badge{background:var(--amber);color:#1a1206;font-size:11px;padding:2px 6px;border-radius:6px;margin-left:6px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--indigo);color:#fff;padding:12px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:14px}
