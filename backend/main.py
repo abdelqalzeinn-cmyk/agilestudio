@@ -281,9 +281,55 @@ def root():
 def health():
     return {"ok":True,"service":"agilestudio-platform","build_tag":BUILD_TAG,"models":len(FALLBACK_CHAIN),"tools":len(BUILD_TOOLS())}
 
+# ---- FreeLLMAPI live model catalog (synced at startup + on demand) ----
+_MODEL_CACHE = {"models": [{"id": f"freellmapi/{m}", "name": m, "provider": "freellmapi"} for m in FALLBACK_CHAIN], "synced_at": 0}
+_MODEL_LOCK = threading.Lock()
+
+def _sync_freellmapi_models(force=False):
+    """Fetch the real model list from FreeLLMAPI. Falls back to FALLBACK_CHAIN on any error."""
+    global _MODEL_CACHE
+    now = int(time.time())
+    with _MODEL_LOCK:
+        if not force and now - _MODEL_CACHE["synced_at"] < 300:
+            return _MODEL_CACHE  # cache 5 min
+    models = []
+    try:
+        with httpx.Client(follow_redirects=True, timeout=httpx.Timeout(connect=10, read=25, write=30, pool=10)) as client:
+            r = client.get(f"{FREELLMAPI_URL}/v1/models", headers=_freellmapi_headers())
+            if r.status_code == 200:
+                data = r.json()
+                raw = data.get("data") or data.get("models") or []
+                for m in raw:
+                    mid = m.get("id") or m.get("name") or m.get("model")
+                    if not mid:
+                        continue
+                    # only keep chat-capable models (skip embedding/audio/etc if flagged)
+                    caps = (m.get("capabilities") or [])
+                    if caps and not any(c in str(caps).lower() for c in ("chat", "completion", "text")):
+                        continue
+                    models.append({"id": f"freellmapi/{mid}", "name": mid, "provider": "freellmapi"})
+    except Exception:
+        models = []
+    with _MODEL_LOCK:
+        if models:
+            _MODEL_CACHE = {"models": models, "synced_at": now, "source": "freellmapi-live"}
+        else:
+            _MODEL_CACHE = {"models": [{"id": f"freellmapi/{m}", "name": m, "provider": "freellmapi"} for m in FALLBACK_CHAIN],
+                            "synced_at": now, "source": "fallback-hardcoded"}
+    return _MODEL_CACHE
+
+
 @app.get("/models/gateway")
 def models_gateway():
-    return {"models":[{"id":f"freellmapi/{m}","name":m,"provider":"freellmapi"} for m in FALLBACK_CHAIN],"tools":BUILD_TOOLS()}
+    cat = _sync_freellmapi_models()
+    return {"models": cat["models"], "tools": BUILD_TOOLS(), "source": cat.get("source")}
+
+
+@app.post("/admin/models/sync-freellmapi")
+def admin_sync_models(request: Request):
+    require_admin(request)
+    cat = _sync_freellmapi_models(force=True)
+    return {"ok": True, "count": len(cat["models"]), "source": cat.get("source")}
 
 
 # ---- auth routes ----
