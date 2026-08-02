@@ -32,7 +32,5 @@ services:
         value: "https://agilestudio.onrender.com"
       - key: CORS_ORIGINS
         value: "https://agilestudio.onrender.com"
-      - key: AGILESTUDIO_DB
-        value: "/data/agilestudio.db"
       - key: PYTHONUNBUFFERED
         value: "1"

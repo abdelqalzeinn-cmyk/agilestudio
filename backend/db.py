@@ -5,7 +5,18 @@ import time
 import threading
 
 DB_PATH = os.environ.get("AGILESTUDIO_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "agilestudio.db"))
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+def _ensure_dir(path):
+    d = os.path.dirname(path)
+    try:
+        os.makedirs(d, exist_ok=True)
+    except (PermissionError, OSError):
+        # Render free / read-only parent (e.g. /data): fall back to a writable cwd path
+        fallback = os.path.join(os.getcwd(), "agilestudio.db")
+        return fallback
+    return path
+
+DB_PATH = _ensure_dir(DB_PATH)
 
 _lock = threading.Lock()
 _conn = None
